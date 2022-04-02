@@ -6,36 +6,22 @@
 
 import server
 import connection_handler
-from pyglet.window import mouse
+import tkinter
 import asyncio
+import weakref
+import requests
 
 class Controller():
     __view = None
+    __app = None
 
-    def __init__(self, view):
+    def __init__(self, app, view):
+        self.__app = weakref.ref(app)           # Avoid cyclic referencing
         self.__view = view
-        self.map_events()
         return
 
-    def map_events(self):
-        """ Map events from pyglet window for handling by controller """
 
-        window = self.__view
-
-        @window.event
-        def on_mouse_press(x, y, button, arg):
-            if button == mouse.LEFT:
-                print("LMB")
-            elif button == mouse.RIGHT:
-                print("RMB")
-
-        @window.event
-        def on_key_press(symbol, modifiers):
-            print("key pressed")
-
-
-
-    def connect_to_server(self, server_addr, port=server.DEFAULT_PORT):
+    async def connect_to_server(self, server_addr, port=server.DEFAULT_PORT):
         """
         Attempt to connect to specified server
         :param server_addr : Address to connect to. Should be valid ip-address.
@@ -45,6 +31,7 @@ class Controller():
 
         pass
 
-    def send_request(self):
+
+    async def send_request(self):
         """ Send request to server """
         pass

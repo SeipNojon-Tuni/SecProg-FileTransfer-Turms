@@ -3,13 +3,16 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-import pyglet
+import console_widget
+import tkinter as tk
+import tkinter.ttk as ttk
 import controller as ctrl
 
 class App():
 
     __window = None
     __controller = None
+    __widgets = {}
 
     def __init__(self):
         return
@@ -21,33 +24,56 @@ class App():
         application.
         """
 
-        # Create pyglet window for app and
+        # Create tkinter window for app and
         # controller object for input handling.
         self.__window = self.create_window()
-        self.__controller = ctrl.Controller(self.__window)
-
-        # App 'mainloop'
-        pyglet.app.run()
+        self.__controller = ctrl.Controller(self, self.__window)
+        self.__window.mainloop()
 
 
-    def create_window(app):
+    def create_window(self):
         """
-        Create pyglet window to serve as
+        Create tkinter window to serve as
         GUI for the application and setup
         elements for the window.
 
-        :param app : Application to link window to.
-        :return: Created pyglet window.
+        :return: Created window.
         """
 
-        window = pyglet.window.Window(1280, 720, "Turms File Transfer", resizable=True)
-        window.set_minimum_size(640, 400)
+        # Window size and name settings
+        window = tk.Tk()
+        window.geometry("640x400")
+        window.minsize(640, 400)
+        window.title("Turms File Transfer")
+        window.iconphoto(False, tk.PhotoImage(file="icon.png"))
+
+        # Main frame container
+        mframe = tk.Frame(window)
+        mframe.grid(row=0, column=0)
+
+        # Left side frame
+        lframe = tk.Frame(mframe)
+        lframe.grid(row=0, column=0)
+
+        # Right side frame
+        rframe = tk.Frame(mframe)
+        rframe.grid(row=0, column=1)
+
+        # Filetree view
 
 
+        # Console window and
+        console = console_widget.Console(master=lframe)
+        console.grid(row=0, column=0, padx=2, pady=1)
 
-        @window.event
-        def on_draw():
-            window.clear()
+
+        # Ip-address / port inputs
+
+        # Connect button / disconnect button
+
+
+        self.__widgets["mframe"] = mframe
+        self.__widgets["console"] = console
 
         return window
 
