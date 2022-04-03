@@ -7,10 +7,22 @@ import console_widget
 import tkinter as tk
 import tkinter.ttk as ttk
 import controller as ctrl
+import asyncio
+
+
+def call_async(target):
+    """
+    Call an asynchronous function so that it is executed without waiting
+
+    :param target : Target function to be executed.
+    """
+    asyncio.run(target)
+    return
+
 
 class App():
 
-    __window = None
+    window = None
     __controller = None
     __widgets = {}
 
@@ -42,38 +54,68 @@ class App():
 
         # Window size and name settings
         window = tk.Tk()
-        window.geometry("640x400")
-        window.minsize(640, 400)
+        window.minsize(880, 500)
         window.title("Turms File Transfer")
         window.iconphoto(False, tk.PhotoImage(file="icon.png"))
+
 
         # Main frame container
         mframe = tk.Frame(window)
         mframe.grid(row=0, column=0)
+        mframe.columnconfigure(0, minsize=200)
+        mframe.columnconfigure(1, minsize=200)
+        mframe.columnconfigure(2, minsize=200)
 
         # Left side frame
         lframe = tk.Frame(mframe)
-        lframe.grid(row=0, column=0)
+        lframe.grid(row=0, column=0, columnspan=2)
 
         # Right side frame
         rframe = tk.Frame(mframe)
-        rframe.grid(row=0, column=1)
-
-        # Filetree view
+        rframe.grid(row=0, column=2, columnspan=1)
 
 
-        # Console window and
+        # Console window and prompt -- Left side
         console = console_widget.Console(master=lframe)
         console.grid(row=0, column=0, padx=2, pady=1)
 
 
-        # Ip-address / port inputs
+        # Filetree view  -- Right side
+        filetree = ttk.Treeview(rframe)
+        filetree.grid(row=0, column=0, padx=1, pady=1, columnspan=3, sticky="N")
+
+        # Ip-address/port labels/input
+        ip_label = ttk.Label(master=rframe, text="IP-address")
+        ip_label.grid(row=1, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+        ip_addr = ttk.Entry(rframe)
+        ip_addr.grid(row=2, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+
+        port_label = ttk.Label(master=rframe, text="Port")
+        port_label.grid(row=3, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+        port = ttk.Entry(rframe)
+        port.grid(row=4, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+
 
         # Connect button / disconnect button
+        c_button = ttk.Button(master=rframe, text="Connect")
+        dc_button = ttk.Button(master=rframe, text="Disconnect", state="disabled")
+        c_button.grid(row=2, column=2, padx=2, pady=2, columnspan=2, sticky="E")
+        dc_button.grid(row=4, column=2, padx=2, pady=2, columnspan=2, sticky="E")
 
 
         self.__widgets["mframe"] = mframe
         self.__widgets["console"] = console
+        self.__widgets["connect"] = c_button
+        self.__widgets["disconnect"] = dc_button
+        self.__widgets["ip"] = ip_addr
+        self.__widgets["port"] = port
+
+        # Action bindings to Controller
+        c_button.bind("<Button-1>", lambda event: call_async(self.__controller.connect_to_server(event)))
+        dc_button.bind("<Button-1>", lambda event: call_async(self.__controller.disconnect_from_server(event)))
 
         return window
+
+    def widget(self, name):
+        return self.__widgets[name]
 
