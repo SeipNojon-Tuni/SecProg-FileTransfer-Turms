@@ -8,6 +8,8 @@
 # -----------------------------------------
 
 import application
+import logger
+
 
 def run():
     """
@@ -15,8 +17,11 @@ def run():
     :return:
     """
 
+    # Create logger for application
+
     # Create application window and run application
     app = application.App()
+    logger.log("Application starting")
     app.run()
     return
 

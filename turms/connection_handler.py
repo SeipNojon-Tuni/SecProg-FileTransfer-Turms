@@ -5,13 +5,14 @@
 #   Sipi Ylä-Nojonen, 2022
 
 from ipaddress import ip_address
-import logging as log
+import logger
 
+import requests
 import requests.exceptions as exc
-import connection as con
 
 class ConnectionHandler():
-    __connection = None
+    __session = None
+    __server_url = None
 
     def __init__(self):
         pass
@@ -26,32 +27,37 @@ class ConnectionHandler():
         """
 
         try:
-            ip = ip_address(ipaddr)                     # Raises ValueError if not valid ip-address
-            portint = int(port)                         # Should be integer value
+            # Allow connection only when no former connection is active.
+            if self.__session or self.__server_url:
+                log.info("Already connected to a server. Please terminate connection first.")
+                return
 
-            url = "https://%s:%s" % (ipaddr, port)      # build url for requests, http://ip:port
+            ip = ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
+            portint = int(port)
 
+            url = "https://%s:%s" % (ipaddr, port)      # build url for requests, http://ip:port instead of DNS url.
 
-            __connection = con.Connection(ipaddr, port) # Create connection object to represent the
-                                                        # connection to server.
+            self.__server_url = url
+            self.__session = requests.Session()
 
         except ValueError:
-            self.__connection = None
-            log.warning("Invalid ip-address or port given.")
+            logger.warning("Invalid ip-address or port given.")
+            return
 
         # Could not establish connection
         except exc.ConnectionError:
+            logger.warning("Failed to establish connection.")
             pass
-
 
     def disconnect_from_server(self):
         """ Attempt to disconnect from server if connection is active """
 
         if self.active_connection():
-            pass
+            self.__session.close()
+            self.__session = None
+            self.__server_url = None
 
-
-    def make_request(self, meth="HEAD", path="/"):
+    def make_request(self, meth, path):
         """
         Make request to the server
 
@@ -60,13 +66,14 @@ class ConnectionHandler():
         :return:
         """
 
-        request = req.Request(method=meth, url=path)
-        request.prepare()
-        return
+        url = "%s:%s" % (self.__server_url, path)
 
+        if self.active_connection():
+            response = self.__session.request(method=meth, url=url, verify=False)   # Ignore TLS certificate
+        return                                                                      # verification
 
     def active_connection(self):
         """ Return whether currently connected to server """
 
         # Return True if connection exists
-        return lambda : True if self.__connection is not None else False
+        return lambda : True if self.__session is not None else False

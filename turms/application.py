@@ -2,12 +2,16 @@
 #   Application framework implementation
 #
 #   Sipi Ylä-Nojonen, 2022
-
-import console_widget
+import logging
+import sys
 import tkinter as tk
 import tkinter.ttk as ttk
-import controller as ctrl
 import asyncio
+
+import console_widget
+import controller as ctrl
+import logger
+import view
 
 
 def call_async(target):
@@ -20,9 +24,10 @@ def call_async(target):
     return
 
 
-class App():
+class App:
 
-    window = None
+    __window = None
+    __gui_pipeline = None
     __controller = None
     __widgets = {}
 
@@ -40,8 +45,14 @@ class App():
         # controller object for input handling.
         self.__window = self.create_window()
         self.__controller = ctrl.Controller(self, self.__window)
-        self.__window.mainloop()
 
+        # Create loggers
+        self.__gui_pipeline = view.View(self.__widgets["console"])
+        sys.stdout = self.__gui_pipeline
+
+        logger.create_logger()
+        logger.info("Application initialization finished.")
+        self.__window.mainloop()
 
     def create_window(self):
         """
@@ -58,33 +69,30 @@ class App():
         window.title("Turms File Transfer")
         window.iconphoto(False, tk.PhotoImage(file="icon.png"))
 
-
-        # Main frame container
+        # -- Main frame container --
         mframe = tk.Frame(window)
         mframe.grid(row=0, column=0)
         mframe.columnconfigure(0, minsize=200)
         mframe.columnconfigure(1, minsize=200)
         mframe.columnconfigure(2, minsize=200)
 
-        # Left side frame
+        # -- Left side frame --
         lframe = tk.Frame(mframe)
         lframe.grid(row=0, column=0, columnspan=2)
 
-        # Right side frame
+        # -- Right side frame --
         rframe = tk.Frame(mframe)
         rframe.grid(row=0, column=2, columnspan=1)
 
-
-        # Console window and prompt -- Left side
+        # -- Console window and prompt -- Left side
         console = console_widget.Console(master=lframe)
         console.grid(row=0, column=0, padx=2, pady=1)
 
-
-        # Filetree view  -- Right side
+        # -- Filetree view -- Right side
         filetree = ttk.Treeview(rframe)
         filetree.grid(row=0, column=0, padx=1, pady=1, columnspan=3, sticky="N")
 
-        # Ip-address/port labels/input
+        # -- Ip-address/port labels/input --
         ip_label = ttk.Label(master=rframe, text="IP-address")
         ip_label.grid(row=1, column=0, padx=1, pady=2, columnspan=2, sticky="W")
         ip_addr = ttk.Entry(rframe)
@@ -95,14 +103,13 @@ class App():
         port = ttk.Entry(rframe)
         port.grid(row=4, column=0, padx=1, pady=2, columnspan=2, sticky="W")
 
-
-        # Connect button / disconnect button
+        # -- Connect button / disconnect button --
         c_button = ttk.Button(master=rframe, text="Connect")
         dc_button = ttk.Button(master=rframe, text="Disconnect", state="disabled")
         c_button.grid(row=2, column=2, padx=2, pady=2, columnspan=2, sticky="E")
         dc_button.grid(row=4, column=2, padx=2, pady=2, columnspan=2, sticky="E")
 
-
+        # -- Dictionary of widgets --
         self.__widgets["mframe"] = mframe
         self.__widgets["console"] = console
         self.__widgets["connect"] = c_button

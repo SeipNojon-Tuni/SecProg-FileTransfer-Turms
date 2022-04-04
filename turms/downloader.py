@@ -4,7 +4,7 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-import logging as log
+import logger as log
 from os.path import exists
 
 # TODO: Whether or not to lock the file between writing chunks
