@@ -23,14 +23,14 @@ class ConnectionHandler():
 
         :param ipaddr:  Address of the server. Should be valid ip-address.
         :param port:    Port to attempt to send the request.
-        :return:
+        :return:        Whether connection was successful ( or already connected)
         """
 
         try:
             # Allow connection only when no former connection is active.
             if self.__session or self.__server_url:
-                log.info("Already connected to a server. Please terminate connection first.")
-                return
+                logger.info("Already connected to a server. Please terminate connection first.")
+                return True
 
             ip = ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
             portint = int(port)
@@ -40,22 +40,28 @@ class ConnectionHandler():
             self.__server_url = url
             self.__session = requests.Session()
 
+            response = self.__session.get(url + "/dir/")
+
+            return True
+
         except ValueError:
             logger.warning("Invalid ip-address or port given.")
-            return
+            return False
 
         # Could not establish connection
         except exc.ConnectionError:
             logger.warning("Failed to establish connection.")
-            pass
+            return False
 
     def disconnect_from_server(self):
         """ Attempt to disconnect from server if connection is active """
 
-        if self.active_connection():
+        if self.__session:
             self.__session.close()
             self.__session = None
             self.__server_url = None
+
+        return True
 
     def make_request(self, meth, path):
         """
@@ -68,12 +74,6 @@ class ConnectionHandler():
 
         url = "%s:%s" % (self.__server_url, path)
 
-        if self.active_connection():
+        if self.__session:
             response = self.__session.request(method=meth, url=url, verify=False)   # Ignore TLS certificate
         return                                                                      # verification
-
-    def active_connection(self):
-        """ Return whether currently connected to server """
-
-        # Return True if connection exists
-        return lambda : True if self.__session is not None else False

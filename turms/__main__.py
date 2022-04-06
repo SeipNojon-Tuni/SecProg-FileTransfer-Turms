@@ -21,7 +21,6 @@ def run():
 
     # Create application window and run application
     app = application.App()
-    logger.log("Application starting")
     app.run()
     return
 

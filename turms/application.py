@@ -20,7 +20,19 @@ def call_async(target):
 
     :param target : Target function to be executed.
     """
-    asyncio.run(target)
+
+    # If event loop is running create new function task for it.
+    # Otherwise, create new event loop to execute call.
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.run(target)
+    else:
+        if loop.is_running():
+            loop.create_task(target)
+            loop.run_forever()
+        else:
+            asyncio.run(target)
     return
 
 
@@ -44,10 +56,11 @@ class App:
         # Create tkinter window for app and
         # controller object for input handling.
         self.__window = self.create_window()
-        self.__controller = ctrl.Controller(self, self.__window)
+        self.__view = view.View(self.__window, self.__widgets)
+        self.__controller = ctrl.Controller(self, self.__window, self.__view)
 
         # Create loggers
-        self.__gui_pipeline = view.View(self.__widgets["console"])
+        self.__gui_pipeline = self.__view.get_console(self.__widgets["console"])
         sys.stdout = self.__gui_pipeline
 
         logger.create_logger()
@@ -109,6 +122,12 @@ class App:
         c_button.grid(row=2, column=2, padx=2, pady=2, columnspan=2, sticky="E")
         dc_button.grid(row=4, column=2, padx=2, pady=2, columnspan=2, sticky="E")
 
+        s_button = ttk.Button(master=rframe, text="Start Server")
+        s_button.grid(row=5, column=0, padx=2, pady=2, columnspan=2, sticky="E")
+
+        sstop_button = ttk.Button(master=rframe, text="Stop Server")
+        sstop_button.grid(row=5, column=2, padx=2, pady=2, columnspan=2, sticky="E")
+
         # -- Dictionary of widgets --
         self.__widgets["mframe"] = mframe
         self.__widgets["console"] = console
@@ -117,9 +136,14 @@ class App:
         self.__widgets["ip"] = ip_addr
         self.__widgets["port"] = port
 
+        self.__widgets["serverstart"] = s_button
+        self.__widgets["serverstop"] = sstop_button
+
         # Action bindings to Controller
         c_button.bind("<Button-1>", lambda event: call_async(self.__controller.connect_to_server(event)))
         dc_button.bind("<Button-1>", lambda event: call_async(self.__controller.disconnect_from_server(event)))
+        s_button.bind("<Button-1>", lambda event: call_async(self.__controller.start_server(event)))
+        sstop_button.bind("<Button-1>", lambda event: call_async(self.__controller.stop_server(event)))
 
         return window
 
