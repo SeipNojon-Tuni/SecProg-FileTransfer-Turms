@@ -3,6 +3,7 @@
 #   and delegating answers
 #
 #   Sipi Ylä-Nojonen, 2022
+import socket
 import sys
 from ipaddress import ip_address
 import logger
@@ -44,7 +45,7 @@ class ConnectionHandler:
 
             logger.info("Connecting to " + url)
 
-            response = self.make_request("/")  # Default path "/"
+            response = await self.make_request("/")  # Default path "/"
 
             logger.info(str(response.code))
             logger.info(response.body)
@@ -84,10 +85,13 @@ class ConnectionHandler:
 
         :param meth: Request method, compliant with HTTP/1.1
         :param path: url path to fetch.
-        :return:     Response got from the server
+        :return:     Response got from the server, False in case of exception
         """
+        try:
+            if self.__session and self.__server_url:
+                url = "%s:%s" % (self.__server_url, path)
+                response = await self.__session.fetch(url)
+                return response
+        except OSError:
+            logger.error(sys.exc_info())
 
-        if self.__session and self.__server_url:
-            url = "%s:%s" % (self.__server_url, path)
-            response = await self.__session.fetch(url)
-            return response

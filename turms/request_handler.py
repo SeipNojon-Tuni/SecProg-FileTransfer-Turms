@@ -12,7 +12,9 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
     """
     Implementation of tornado.web's RequestHandler class
     responsible for handling and writing responses
-     for single client connection.
+    for single client connection.
+    This subclass specifies server wide behaviour in responses.
+    Path specific implementations should be derived from this.
     """
 
     # No need to support other methods than GET and HEAD
@@ -20,16 +22,6 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
     # content by not accepting any other methods.
     SUPPORTED_METHODS = ("GET", "HEAD")
 
-    def head(self):
-        self.set_status(200)
-        self.flush()
-        self.finish()
-
-    def get(self):
-        self.set_status(200)
-        self.write("Nothing to show here.")
-        self.flush()
-        self.finish()
 
     # Unsupported methods
     def post(self):
@@ -57,3 +49,15 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
         self.flush()
         self.finish()
 
+class DirectoryRequestHandler(TurmsRequestHandler):
+
+    def head(self):
+        self.set_status(200)
+        self.flush()
+        self.finish()
+
+    def get(self):
+        self.set_status(200)
+        self.write("Nothing to show here.")
+        self.flush()
+        self.finish()
