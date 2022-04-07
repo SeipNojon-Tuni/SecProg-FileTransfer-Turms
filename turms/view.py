@@ -3,6 +3,7 @@
 #   data display to application GUI
 #
 #   Sipi Ylä-Nojonen, 2022
+import cgi
 import logging
 import tkinter as tk
 
@@ -29,25 +30,44 @@ class View(object):
     __console = None
 
     def __init__(self, window, widgets):
-        """ Initiate with specified widget for print output """
+        """ Initiates with specified widget for print output """
         self.__window = window
         self.__widgets = widgets
 
     def get_console(self, widget):
-        """ Create or return write stream console for application """
+        """ Creates or return write stream console for application """
         if not self.__console:
             self.__console = Console(widget)
         return self.__console
 
-    def state_to_connection(self):
+    def state_to_connect(self):
         # When user presses "Connect" button
         self.__widgets["connect"]["state"] = tk.DISABLED
         self.__widgets["disconnect"]["state"] = tk.NORMAL
 
-    def state_to_disconnection(self):
+    def state_to_disconnect(self):
         # When user presses "Disconnect" button
         self.__widgets["connect"]["state"] = tk.NORMAL
         self.__widgets["disconnect"]["state"] = tk.DISABLED
+
+    def print_out_filetree(self, content):
+        """
+        Prints out list of filenames to application GUI filetree view
+
+        :param content:     List of strings representing filenames
+        :return:            None
+        """
+        tree = self.__widgets["filetree"]
+        tree.delete(*tree.get_children())
+
+        # Print out content to GUI
+        for i, item in enumerate(content):
+            # TODO: Escape dangerous characters
+            # TODO: +++++++++++++++++++++++++++
+            parsed = item
+            # TODO: +++++++++++++++++++++++++++
+            tree.insert("", tk.END, value=parsed)
+
 
 
 

@@ -24,10 +24,10 @@ def call_async(target):
     try:
         asyncio.get_event_loop()
     except RuntimeError:
+        logger.info(sys.exc_info())
         asyncio.new_event_loop()
     finally:
-        coro = asyncio.get_event_loop().run_until_complete(target)
-
+        asyncio.get_event_loop().run_until_complete(target)
 
 
 class App:
@@ -96,19 +96,21 @@ class App:
         console.grid(row=0, column=0, padx=2, pady=1)
 
         # -- Filetree view -- Right side
-        filetree = ttk.Treeview(rframe)
+        filetree = ttk.Treeview(rframe, columns=["filename", "filesize"])
         filetree.grid(row=0, column=0, padx=1, pady=1, columnspan=3, sticky="N")
+        filetree.heading("filename", text="File name")
+        filetree.heading("filesize", text="File size")
 
         # -- Ip-address/port labels/input --
         ip_label = ttk.Label(master=rframe, text="IP-address")
-        ip_label.grid(row=1, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+        ip_label.grid(row=1, column=0, padx=1, pady=2, columnspan=2, sticky="E")
         ip_addr = ttk.Entry(rframe)
-        ip_addr.grid(row=2, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+        ip_addr.grid(row=2, column=0, padx=1, pady=2, columnspan=2, sticky="E")
 
         port_label = ttk.Label(master=rframe, text="Port")
-        port_label.grid(row=3, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+        port_label.grid(row=3, column=0, padx=1, pady=2, columnspan=2, sticky="E")
         port = ttk.Entry(rframe)
-        port.grid(row=4, column=0, padx=1, pady=2, columnspan=2, sticky="W")
+        port.grid(row=4, column=0, padx=1, pady=2, columnspan=2, sticky="E")
 
         # -- Connect button / disconnect button --
         c_button = ttk.Button(master=rframe, text="Connect")
@@ -129,6 +131,7 @@ class App:
         self.__widgets["disconnect"] = dc_button
         self.__widgets["ip"] = ip_addr
         self.__widgets["port"] = port
+        self.__widgets["filetree"] = filetree
 
         self.__widgets["serverstart"] = s_button
         self.__widgets["serverstop"] = sstop_button

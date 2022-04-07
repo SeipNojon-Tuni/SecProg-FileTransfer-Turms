@@ -5,7 +5,7 @@
 #   Sipi Ylä-Nojonen, 2022
 
 import tornado.web
-import asyncio
+import logger
 
 
 class TurmsRequestHandler(tornado.web.RequestHandler):
@@ -19,9 +19,6 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
     # so prevent any unauthorized modification of server
     # content by not accepting any other methods.
     SUPPORTED_METHODS = ("GET", "HEAD")
-
-    async def prepare(self):
-        pass
 
     def head(self):
         self.set_status(200)
@@ -59,8 +56,4 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
         self.set_status(405)
         self.flush()
         self.finish()
-
-    def on_connection_close(self):
-        pass
-
 

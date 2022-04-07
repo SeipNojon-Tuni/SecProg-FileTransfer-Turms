@@ -1,9 +1,9 @@
 #   --- Turms ---
-#   Handler for making requests from user to server
+#   Handler for making requests from client to server
 #   and delegating answers
 #
 #   Sipi Ylä-Nojonen, 2022
-
+import sys
 from ipaddress import ip_address
 import logger
 
@@ -19,7 +19,7 @@ class ConnectionHandler:
     def __init__(self):
         pass
 
-    async def connect_to_server(self, ipaddr, port):
+    async def connect_to_server(self, ipaddr, port, controller):
         """
         Attempt to create a connection to specified server.
 
@@ -32,54 +32,62 @@ class ConnectionHandler:
             # Allow connection only when no former connection is active.
             if self.__session or self.__server_url:
                 logger.info("Already connected to a server. Please terminate connection first.")
-                return True
+                return
 
             ip = ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
             portint = int(port)
 
-            url = "https://%s:%s" % (ipaddr, port)      # build url for requests, http://ip:port instead of DNS url.
+            url = "http://%s:%s" % (ipaddr, portint)
 
             self.__server_url = url
             self.__session = tornado.httpclient.AsyncHTTPClient()
 
-            response = await self.__session.fetch(url+"/")
+            logger.info("Connecting to " + url)
+
+            response = self.make_request("/")  # Default path "/"
+
+            logger.info(str(response.code))
             logger.info(response.body)
 
-            return True
+            return
         except tornado.simple_httpclient.HTTPTimeoutError:
             logger.error("Connection timed out.")
-            return False
+            self.disconnect_from_server(controller)
+            return
 
         except ValueError:
             logger.warning("Invalid ip-address or port given.")
-            return False
+            self.disconnect_from_server(controller)
+            return
 
         # Could not establish connection
         except ConnectionError:
             logger.warning("Failed to establish connection.")
-            return False
+            self.disconnect_from_server(controller)
+            return
 
-    def disconnect_from_server(self):
+    def disconnect_from_server(self, controller):
         """ Attempt to disconnect from server if connection is active """
 
         if self.__session:
             self.__session.close()
             self.__session = None
-            self.__server_url = None
 
-        return True
+        self.__server_url = None
+        controller.state_to_disconnect()
 
-    def make_request(self, meth, path):
+        return
+
+    async def make_request(self, path="/"):
         """
         Make request to the server
 
         :param meth: Request method, compliant with HTTP/1.1
         :param path: url path to fetch.
-        :return:
+        :return:     Response got from the server
         """
 
-        url = "%s:%s" % (self.__server_url, path)
-
-        if self.__session:
-            response = self.__session.request(method=meth, url=url, verify=False)   # Ignore TLS certificate
-        return                                                                      # verification
+        if self.__session and self.__server_url:
+            url = "%s:%s" % (self.__server_url, path)
+            response = await self.__session.fetch(url)
+            return response

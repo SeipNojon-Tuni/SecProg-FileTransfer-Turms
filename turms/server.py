@@ -33,16 +33,22 @@ class TurmsServer(tornado.web.Application):
 
     """ Tornado web application Server for delegating user requests"""
     def __init__(self):
-        handlers = [ (r"/", rh.TurmsRequestHandler) ]
+        handlers = [(r"/", rh.TurmsRequestHandler)]
         settings = {"debug": True}
         super().__init__(handlers, **settings)
 
     def run(self, port=DEFAULT_PORT):
         """ Start up the server in asyncio event loop """
         logger.info("Starting server in port " + str(port))
-        self.__httpserver = self.listen(port)
-        if not asyncio.get_event_loop().is_running():
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        finally:
+            self.__httpserver = self.listen(port)
             tornado.ioloop.IOLoop.instance().start()
+
 
     async def stop(self):
         """ Stop server by ending asyncio event loop """
@@ -64,15 +70,13 @@ def start_server(server):
     server.run()
     return
 
-
 def start_server_thread(server):
-    """ Initialize server thread """
-    # Start server in new thread
-    server_thread = threading.Thread(target=start_server, args=[server])
-    server_thread.daemon = True
-    server_thread.start()
+    import threading
 
-    return server_thread
+    server_th = threading.Thread(target=server.run)
+    server_th.daemon = True
+    server_th.start()
+    return server_th
 
 
 def stop_server():
