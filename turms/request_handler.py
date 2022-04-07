@@ -22,6 +22,8 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
     # content by not accepting any other methods.
     SUPPORTED_METHODS = ("GET", "HEAD")
 
+    def set_default_headers(self):
+        
 
     # Unsupported methods
     def post(self):
