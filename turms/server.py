@@ -29,23 +29,28 @@ DEFAULT_PORT = 16569
 #   https://www.tornadoweb.org/en/stable/guide/security.html
 #
 class TurmsServer(tornado.web.Application):
+    __httpserver = None
+
     """ Tornado web application Server for delegating user requests"""
     def __init__(self):
-        handlers = [ (r"/dir", rh.TurmsRequestHandler) ]
+        handlers = [ (r"/", rh.TurmsRequestHandler) ]
         settings = {"debug": True}
         super().__init__(handlers, **settings)
 
     def run(self, port=DEFAULT_PORT):
         """ Start up the server in asyncio event loop """
         logger.info("Starting server in port " + str(port))
-        self.listen(port)
+        self.__httpserver = self.listen(port)
         if not asyncio.get_event_loop().is_running():
             tornado.ioloop.IOLoop.instance().start()
 
-    def stop(self):
+    async def stop(self):
         """ Stop server by ending asyncio event loop """
+        if self.__httpserver:
+            await self.__httpserver.close_all_connections()
         tornado.ioloop.IOLoop.instance().stop()
         logger.info("Server stopped.")
+        return
 
 
 def create_server():

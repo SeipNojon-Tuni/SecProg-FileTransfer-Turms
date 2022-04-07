@@ -20,20 +20,14 @@ def call_async(target):
 
     :param target : Target function to be executed.
     """
-
-    # If event loop is running create new function task for it.
-    # Otherwise, create new event loop to execute call.
+    # Create new event loop if necessary and add the new coroutine to loop.
     try:
-        loop = asyncio.get_event_loop()
+        asyncio.get_event_loop()
     except RuntimeError:
-        asyncio.run(target)
-    else:
-        if loop.is_running():
-            loop.create_task(target)
-            loop.run_forever()
-        else:
-            asyncio.run(target)
-    return
+        asyncio.new_event_loop()
+    finally:
+        coro = asyncio.get_event_loop().run_until_complete(target)
+
 
 
 class App:

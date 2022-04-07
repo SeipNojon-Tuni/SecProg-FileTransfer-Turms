@@ -8,7 +8,7 @@ import tornado.ioloop
 import server
 import connection_handler
 import logger
-
+import asyncio
 
 class Controller:
     __view = None
@@ -26,21 +26,22 @@ class Controller:
         return
 
     async def connect_to_server(self, event):
-        """
-        Attempt to connect to specified server
-        :param event :
-        """
+        """ Attempt to connect to specified server. """
 
         ip = self.__app.widget("ip").get()
         port = self.__app.widget("port").get()
 
         if self.__conn_handler:
-            success = self.__conn_handler.connect_to_server(ip, port)
+            success = await self.__conn_handler.connect_to_server(ip, port)
+
+            if success:
+                logger.info("Success")
 
             if success:
                 self.__view.state_to_connection()
 
     async def disconnect_from_server(self, event):
+        """ Disconnect connection from server. """
 
         if self.__conn_handler:
             success = self.__conn_handler.disconnect_from_server()
@@ -48,7 +49,7 @@ class Controller:
                 self.__view.state_to_disconnection()
 
     async def start_server(self, event):
-        """ Create server if necessary and start it up """
+        """ Create server if necessary and start it up. """
         if not self.__server:
             self.__server = server.create_server()
 
@@ -58,7 +59,7 @@ class Controller:
     async def stop_server(self, event):
         """ Stop server instance if it is running and join server thread """
         if self.__server:
-            self.__server.stop()
+            asyncio.create_task(self.__server.stop())
             if self.__server_handle:
                 self.__server_handle.join()
 

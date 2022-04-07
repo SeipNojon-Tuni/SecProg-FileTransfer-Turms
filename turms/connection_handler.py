@@ -7,17 +7,19 @@
 from ipaddress import ip_address
 import logger
 
-import requests
-import requests.exceptions as exc
+import tornado.simple_httpclient
+import tornado.httpclient
+import asyncio
 
-class ConnectionHandler():
+
+class ConnectionHandler:
     __session = None
     __server_url = None
 
     def __init__(self):
         pass
 
-    def connect_to_server(self, ipaddr, port):
+    async def connect_to_server(self, ipaddr, port):
         """
         Attempt to create a connection to specified server.
 
@@ -38,18 +40,22 @@ class ConnectionHandler():
             url = "https://%s:%s" % (ipaddr, port)      # build url for requests, http://ip:port instead of DNS url.
 
             self.__server_url = url
-            self.__session = requests.Session()
+            self.__session = tornado.httpclient.AsyncHTTPClient()
 
-            response = self.__session.get(url + "/dir/")
+            response = await self.__session.fetch(url+"/")
+            logger.info(response.body)
 
             return True
+        except tornado.simple_httpclient.HTTPTimeoutError:
+            logger.error("Connection timed out.")
+            return False
 
         except ValueError:
             logger.warning("Invalid ip-address or port given.")
             return False
 
         # Could not establish connection
-        except exc.ConnectionError:
+        except ConnectionError:
             logger.warning("Failed to establish connection.")
             return False
 

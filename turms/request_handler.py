@@ -5,6 +5,7 @@
 #   Sipi Ylä-Nojonen, 2022
 
 import tornado.web
+import asyncio
 
 
 class TurmsRequestHandler(tornado.web.RequestHandler):
@@ -23,23 +24,43 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
         pass
 
     def head(self):
-        pass
+        self.set_status(200)
+        self.flush()
+        self.finish()
 
     def get(self):
+        self.set_status(200)
         self.write("Nothing to show here.")
+        self.flush()
+        self.finish()
 
     # Unsupported methods
     def post(self):
-        pass
+        self.set_status(405)
+        self.flush()
+        self.finish()
 
     def options(self):
+        self.set_status(405)
+        self.flush()
         pass
 
     def delete(self):
-        pass
+        self.set_status(405)
+        self.flush()
+        self.finish()
 
     def put(self):
-        pass
+        self.set_status(405)
+        self.flush()
+        self.finish()
 
     def patch(self):
+        self.set_status(405)
+        self.flush()
+        self.finish()
+
+    def on_connection_close(self):
         pass
+
+
