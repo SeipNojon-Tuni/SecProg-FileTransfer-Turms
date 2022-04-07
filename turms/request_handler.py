@@ -23,7 +23,7 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ("GET", "HEAD")
 
     def set_default_headers(self):
-        
+        pass
 
     # Unsupported methods
     def post(self):
