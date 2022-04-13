@@ -10,7 +10,7 @@ import logger
 
 import tornado.simple_httpclient
 import tornado.httpclient
-import asyncio
+import json
 
 
 class ConnectionHandler:
@@ -44,22 +44,30 @@ class ConnectionHandler:
             self.__session = tornado.httpclient.AsyncHTTPClient()
 
             logger.info("Connecting to " + url)
-
+            """
             response = await self.make_request("/")  # Default path "/"
 
             logger.info(str(response.code))
             logger.info(response.body)
+            """
 
-            return
-        except tornado.simple_httpclient.HTTPTimeoutError:
-            logger.error("Connection timed out.")
-            self.disconnect_from_server(controller)
-            return
+            await self.fetch_server_content(controller)
 
-        except ValueError:
-            logger.warning("Invalid ip-address or port given.")
-            self.disconnect_from_server(controller)
-            return
+            """
+            except tornado.simple_httpclient.HTTPTimeoutError:
+                logger.error("Connection timed out.")
+                self.disconnect_from_server(controller)
+                return
+    
+            except ValueError:
+                logger.warning("Invalid ip-address or port given.")
+                self.disconnect_from_server(controller)
+                return
+    
+            except AttributeError:
+                logger.warning("Failed to get response from server.")
+                logger.debug()
+            """
 
         # Could not establish connection
         except ConnectionError:
@@ -95,3 +103,17 @@ class ConnectionHandler:
         except OSError:
             logger.error(sys.exc_info())
 
+    async def fetch_server_content(self, controller):
+        """ Request server content and print it to view """
+        response = await self.make_request("/dir/")
+
+        try:
+            if response.code == 200:
+                filenames = json.loads(response.body)
+
+                # TODO: SANITIZE 'filenames' objects string
+                controller.update_filetree(filenames)
+                return
+
+        except ValueError:
+            logger.error("Can't parse response.")

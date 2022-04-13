@@ -6,6 +6,7 @@
 
 import tornado.web
 import logger
+import server_file_handler as sfh
 
 
 class TurmsRequestHandler(tornado.web.RequestHandler):
@@ -34,7 +35,7 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
     def options(self):
         self.set_status(405)
         self.flush()
-        pass
+        self.finish()
 
     def delete(self):
         self.set_status(405)
@@ -51,6 +52,24 @@ class TurmsRequestHandler(tornado.web.RequestHandler):
         self.flush()
         self.finish()
 
+# ---------------------------------------------------
+# Path specific request handlers for different request paths
+# eg.   --> IndexRequestHandler for "/"
+#       --> DirectoryRequestHandler for "/dir/"
+
+class IndexRequestHandler(TurmsRequestHandler):
+
+    def head(self):
+        self.set_status(200)
+        self.flush()
+        self.finish()
+
+    def get(self):
+        self.set_status(200)
+        self.write("The index.")
+        self.flush()
+        self.finish()
+
 class DirectoryRequestHandler(TurmsRequestHandler):
 
     def head(self):
@@ -60,6 +79,10 @@ class DirectoryRequestHandler(TurmsRequestHandler):
 
     def get(self):
         self.set_status(200)
-        self.write("Nothing to show here.")
+        # Write list of available files for download as json object
+        files = sfh.fetch_server_content()
+        self.write(files)
+        pass
+
         self.flush()
         self.finish()

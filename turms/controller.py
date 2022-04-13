@@ -46,14 +46,14 @@ class Controller:
         if not self.__server:
             self.__server = server.create_server()
 
-        self.__server_handle = server.start_server_thread(self.__server)
+        self.__server_handle = server.start_server_thread(self.__server, server.DEFAULT_PORT, "0.0.0.0")
         return
 
     async def stop_server(self, event):
         """ Stop server instance if it is running and join server thread """
         if self.__server:
-            asyncio.create_task(self.__server.stop())
-            self.__server_handle.join()
+            server.stop_server(self.__server)
+        self.__server_handle.join(10)
 
     async def send_request(self, event):
         """ Send request to server """
@@ -64,3 +64,6 @@ class Controller:
 
     def state_to_disconnect(self):
         self.__view.state_to_disconnect()
+
+    def update_filetree(self, items):
+        self.__view.print_out_filetree(items)

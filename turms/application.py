@@ -59,6 +59,9 @@ class App:
 
         logger.create_logger()
         logger.info("Application initialization finished.")
+
+        logger.set_log_level(logging.DEBUG)
+
         self.__window.mainloop()
 
     def create_window(self):
