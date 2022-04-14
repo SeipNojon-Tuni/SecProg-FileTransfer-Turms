@@ -10,6 +10,7 @@ import logger
 
 import tornado.ioloop
 import tornado.web
+from tornado.web import HostMatches
 import tornado.httpserver
 import threading
 import asyncio
@@ -20,7 +21,7 @@ import asyncio
 #       https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
 #       https://www.speedguide.net/port.php?port=16568
 DEFAULT_PORT = 16569
-DEFAULT_HOST = "127.0.0.1"     # Tornado HTTPServer expects address as string
+DEFAULT_HOST = "127.0.0.1"
 
 
 #   -------------------------------------------------------
@@ -34,40 +35,89 @@ class TurmsApp(tornado.web.Application):
     # TODO: Check StaticFileHandler implementation and
     # TODO: Host name pattern against DNS rebound attack
 
-    """ Tornado web application initialized for delegating request handling through HTTPServer class"""
-    def __init__(self):
-        handlers = [(r"/", rh.IndexRequestHandler),
-                    (r"/dir/", rh.DirectoryRequestHandler)]
+    """
+    Tornado web application initialized for delegating request handling through HTTPServer class
+
+    --- SECURITY NOTE ---
+    Omit default_host argument from tornado.web.Application.__init__() as well as use appropriate
+    host patterns in defining paths for application request handlers instead of r'.*'
+
+    https://www.tornadoweb.org/en/stable/web.html#application-configuration
+    """
+
+
+    def __init__(self, host):
+        handlers =  [ ( r"/", rh.IndexRequestHandler),
+                        (r"/dir/", rh.DirectoryRequestHandler)]
+
+            # [
+            #         (HostMatches(host),
+            #             [ ( r"/", rh.IndexRequestHandler),
+            #             (r"/dir/", rh.DirectoryRequestHandler)]
+            #          )
+            #         ]
         settings = {"debug": True}
         super().__init__(handlers, **settings)
 
+    def run(self, loop, port=DEFAULT_PORT, host="127.0.0.1"):
+        """ Start up the server in asyncio event loop """
+        logger.info("Starting server in port " + str(port))
 
-def create_server():
+        asyncio.set_event_loop(loop)
+        self.__httpserver = self.listen(port)
+        loop.run_forever()
+
+
+    def stop(self, *args):
+        """ Stop server by ending asyncio event loop """
+        if self.__httpserver:
+            self.__httpserver.stop()
+            asyncio.get_event_loop().create_task(self.__httpserver.close_all_connections())
+        logger.info("Server stopped.")
+        return
+
+
+def create_server(ip):
     """ Initialize server class object """
-    return tornado.httpserver.HTTPServer(TurmsApp)
+    app = TurmsApp(ip)
+    return app # tornado.httpserver.HTTPServer(TurmsApp(ip))
 
 
-def start_server(server, port=DEFAULT_PORT, ip=DEFAULT_HOST):
+def start_server(loop, server, port=DEFAULT_PORT, ip=DEFAULT_HOST):
     """ Initialize and start up server """
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    server.listen(port, ip)
+
+    # -- HTTPServer --
+    # asyncio.set_event_loop(asyncio.new_event_loop())
+    # logger.info("Starting server in %s:%s" % (ip, str(port)))
+    # server.listen(port)
+    # asyncio.get_event_loop().run_forever()
+    # logger.info("Server started")
+
+    server.run(loop, port, ip)
+
     return
 
 
-def stop_server(server):
+def stop_server(loop, server):
     """ Stop server running in separate thread """
-    ioloop = tornado.ioloop.IOLoop.instance()
+
+    # -- HTTPServer --
+    # ioloop = tornado.ioloop.IOLoop.instance()
+    # logger.info("Server stopping.")
+    # asyncio.get_event_loop().call_soon_threadsafe(server.close_all_connections())
+    # asyncio.get_event_loop().stop()
+    # logger.info("Server stopped.")
+    # #ioloop.add_callback(ioloop.close)
+
     logger.info("Server stopping.")
-    asyncio.get_event_loop().create_task(server.close_all_connections())
-    ioloop.add_callback(ioloop.stop)
-    #ioloop.add_callback(ioloop.close)
+    asyncio.get_event_loop().call_soon_threadsafe(server.stop, loop)
+    loop.stop()
     return
 
 
-def start_server_thread(server, port, ip):
-    import threading
+def start_server_thread(loop, server, port, ip):
 
-    server_th = threading.Thread(target=start_server, args=[server, port, ip])
+    server_th = threading.Thread(target=start_server, args=[loop, server, port, ip])
     server_th.daemon = True
     server_th.start()
     return server_th

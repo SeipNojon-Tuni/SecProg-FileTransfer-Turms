@@ -86,3 +86,6 @@ class DirectoryRequestHandler(TurmsRequestHandler):
 
         self.flush()
         self.finish()
+
+class FileRequestHandler(TurmsRequestHandler):
+    pass

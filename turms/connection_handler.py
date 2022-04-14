@@ -44,30 +44,28 @@ class ConnectionHandler:
             self.__session = tornado.httpclient.AsyncHTTPClient()
 
             logger.info("Connecting to " + url)
-            """
-            response = await self.make_request("/")  # Default path "/"
 
-            logger.info(str(response.code))
-            logger.info(response.body)
-            """
+            # response = await self.make_request("/")  # Default path "/"
+            #
+            # logger.info(str(response.code))
+            # logger.info(response.body)
 
             await self.fetch_server_content(controller)
 
-            """
-            except tornado.simple_httpclient.HTTPTimeoutError:
-                logger.error("Connection timed out.")
-                self.disconnect_from_server(controller)
-                return
-    
-            except ValueError:
-                logger.warning("Invalid ip-address or port given.")
-                self.disconnect_from_server(controller)
-                return
-    
-            except AttributeError:
-                logger.warning("Failed to get response from server.")
-                logger.debug()
-            """
+            # except tornado.simple_httpclient.HTTPTimeoutError:
+            #     logger.error("Connection timed out.")
+            #     self.disconnect_from_server(controller)
+            #     return
+            #
+            # except ValueError:
+            #     logger.warning("Invalid ip-address or port given.")
+            #     self.disconnect_from_server(controller)
+            #     return
+            #
+            # except AttributeError:
+            #     logger.warning("Failed to get response from server.")
+            #     logger.debug()
+
 
         # Could not establish connection
         except ConnectionError:
@@ -95,13 +93,13 @@ class ConnectionHandler:
         :param path: url path to fetch.
         :return:     Response got from the server, False in case of exception
         """
-        try:
-            if self.__session and self.__server_url:
-                url = "%s:%s" % (self.__server_url, path)
-                response = await self.__session.fetch(url)
-                return response
-        except OSError:
-            logger.error(sys.exc_info())
+        #try:
+        if self.__session and self.__server_url:
+            url = "%s%s" % (self.__server_url, path)
+            response = await self.__session.fetch(url)
+            return response
+       # except OSError:
+            #logger.error(sys.exc_info())
 
     async def fetch_server_content(self, controller):
         """ Request server content and print it to view """
