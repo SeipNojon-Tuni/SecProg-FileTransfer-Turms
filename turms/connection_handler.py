@@ -6,12 +6,13 @@
 import socket
 import sys
 from ipaddress import ip_address
+
 import logger
 
 import tornado.simple_httpclient
 import tornado.httpclient
 import json
-
+from pathvalidate import sanitize_filename, validate_filename
 
 class ConnectionHandler:
     __session = None
@@ -26,7 +27,7 @@ class ConnectionHandler:
 
         :param ipaddr:  Address of the server. Should be valid ip-address.
         :param port:    Port to attempt to send the request.
-        :return:        Whether connection was successful ( or already connected)
+        :return:        Whether connection was successful.
         """
 
         try:
@@ -50,68 +51,105 @@ class ConnectionHandler:
             # logger.info(str(response.code))
             # logger.info(response.body)
 
-            await self.fetch_server_content(controller)
+            return await self.fetch_server_content(controller)
 
-            # except tornado.simple_httpclient.HTTPTimeoutError:
-            #     logger.error("Connection timed out.")
-            #     self.disconnect_from_server(controller)
-            #     return
-            #
-            # except ValueError:
-            #     logger.warning("Invalid ip-address or port given.")
-            #     self.disconnect_from_server(controller)
-            #     return
-            #
-            # except AttributeError:
-            #     logger.warning("Failed to get response from server.")
-            #     logger.debug()
+        except tornado.simple_httpclient.HTTPTimeoutError:
+             logger.error("Connection timed out.")
+             self.disconnect_from_server(controller)
+             return False
 
+        except ValueError:
+             logger.warning("Invalid ip-address or port given.")
+             self.disconnect_from_server(controller)
+             return False
+
+        # except AttributeError:
+        #      logger.warning("Failed to get response from server.")
+        #      logger.debug()
+        #      return False
 
         # Could not establish connection
         except ConnectionError:
             logger.warning("Failed to establish connection.")
-            self.disconnect_from_server(controller)
-            return
+            return False
 
     def disconnect_from_server(self, controller):
-        """ Attempt to disconnect from server if connection is active """
+        """ Attempt to disconnect from server if connection is active
 
+        :param controller:  Controller class of Application
+        :return:            Whether disconnection was successful
+        """
         if self.__session:
             self.__session.close()
             self.__session = None
 
         self.__server_url = None
-        controller.state_to_disconnect()
 
-        return
+        controller.update_filetree([])      # Empty filetree in GUI when not
+                                            # connected
+        return True
 
     async def make_request(self, path="/"):
         """
-        Make request to the server
+        Make a request to the server
 
         :param meth: Request method, compliant with HTTP/1.1
         :param path: url path to fetch.
-        :return:     Response got from the server, False in case of exception
+        :return:     Response got from the server
         """
-        #try:
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, path)
-            response = await self.__session.fetch(url)
+            #response = await self.__session.fetch(url)
+            response = await self.__session.fetch(tornado.httpclient.HTTPRequest(url, "OPTIONS"))
             return response
-       # except OSError:
-            #logger.error(sys.exc_info())
+        return None
+
 
     async def fetch_server_content(self, controller):
-        """ Request server content and print it to view """
-        response = await self.make_request("/dir/")
-
+        """ Request server content and print it to view
+        :param controller: Application Controller object
+        :return: Whether fetching was successful
+        """
         try:
-            if response.code == 200:
-                filenames = json.loads(response.body)
+            response = await self.make_request("/dir/")
 
-                # TODO: SANITIZE 'filenames' objects string
-                controller.update_filetree(filenames)
-                return
+            logger.info("Response status " + str(response.code))
+
+            filenames = json.loads(response.body)
+
+            san_names = []
+
+            # Sanitize and validate filenames in provided in response
+            # body before printing them out as possible downloads.
+            for name in filenames:
+                sname = sanitize_filename(name)
+                try:
+                    validate_filename(sname)
+                    san_names.append(sname)
+                except:
+                    logger.warning("Ignoring invalid filename %s with index %i in response."
+                                   % (sname, filenames.index(name)) )
+
+            controller.update_filetree(san_names)
+            return True
 
         except ValueError:
-            logger.error("Can't parse response.")
+            logger.warning("Cannot parse response.")
+            return False
+
+        except tornado.httpclient.HTTPClientError:
+            details, value, traceback = sys.exc_info()
+            logger.info("Reason: %s" % value )
+            return False
+
+        except OSError:
+            logger.error(sys.exc_info())
+            return False
+
+    async def fetch_file_from_server(self, filename, downloader):
+        """ Request to download a file from server. """
+        dl_url =  "/download/%s" % (filename)
+        response = await self.make_request(dl_url)
+        downloader.write_to_file(response.body)
+
+

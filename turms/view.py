@@ -6,6 +6,8 @@
 import cgi
 import logging
 import tkinter as tk
+from tkinter import filedialog
+
 
 class Console:
     def __init__(self, widget):
@@ -68,6 +70,7 @@ class View(object):
             # TODO: +++++++++++++++++++++++++++
             tree.insert("", tk.END, value=parsed)
 
-
+    def prompt_save_location(self):
+        return tk.filedialog.asksaveasfilename()
 
 

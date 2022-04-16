@@ -35,18 +35,18 @@ class TurmsApp(tornado.web.Application):
     # TODO: Check StaticFileHandler implementation and
     # TODO: Host name pattern against DNS rebound attack
 
-    """
-    Tornado web application initialized for delegating request handling through HTTPServer class
-
-    --- SECURITY NOTE ---
-    Omit default_host argument from tornado.web.Application.__init__() as well as use appropriate
-    host patterns in defining paths for application request handlers instead of r'.*'
-
-    https://www.tornadoweb.org/en/stable/web.html#application-configuration
-    """
-
-
     def __init__(self, host):
+        """
+        Tornado web application initialized for delegating request handling through HTTPServer class
+
+        --- SECURITY NOTE ---
+        Omit default_host argument from tornado.web.Application.__init__() as well as use appropriate
+        host patterns in defining paths for application request handlers instead of r'.*'
+
+        https://www.tornadoweb.org/en/stable/web.html#application-configuration
+
+        :param host: Host name of server, define loopback options
+        """
         handlers =  [ ( r"/", rh.IndexRequestHandler),
                         (r"/dir/", rh.DirectoryRequestHandler)]
 
@@ -56,20 +56,30 @@ class TurmsApp(tornado.web.Application):
             #             (r"/dir/", rh.DirectoryRequestHandler)]
             #          )
             #         ]
-        settings = {"debug": True}
+        settings = {}
         super().__init__(handlers, **settings)
 
     def run(self, loop, port=DEFAULT_PORT, host="127.0.0.1"):
-        """ Start up the server in asyncio event loop """
+        """
+        Start up the server in asyncio.event_loop instance and
+        start listening to connections in given port.
+
+        :param loop Target event loop to use for executing
+                    asynchronous server loop in.
+        :param port Port to listen to for connections
+        :param host Host-address to use, define loopback options
+        """
         logger.info("Starting server in port " + str(port))
 
         asyncio.set_event_loop(loop)
-        self.__httpserver = self.listen(port)
+        self.__httpserver = self.listen(port, host)
         loop.run_forever()
 
 
     def stop(self, *args):
-        """ Stop server by ending asyncio event loop """
+        """ Stop accepting new connections and await for all current
+        connections to close and stop server application.
+        """
         if self.__httpserver:
             self.__httpserver.stop()
             asyncio.get_event_loop().create_task(self.__httpserver.close_all_connections())
@@ -78,46 +88,46 @@ class TurmsApp(tornado.web.Application):
 
 
 def create_server(ip):
-    """ Initialize server class object """
-    app = TurmsApp(ip)
-    return app # tornado.httpserver.HTTPServer(TurmsApp(ip))
+    """ Initialize server class object with given host address """
+    return TurmsApp(ip)
 
 
-def start_server(loop, server, port=DEFAULT_PORT, ip=DEFAULT_HOST):
-    """ Initialize and start up server """
+def start_server(loop, app, port=DEFAULT_PORT, ip=DEFAULT_HOST):
+    """ Initialize and start up server
 
-    # -- HTTPServer --
-    # asyncio.set_event_loop(asyncio.new_event_loop())
-    # logger.info("Starting server in %s:%s" % (ip, str(port)))
-    # server.listen(port)
-    # asyncio.get_event_loop().run_forever()
-    # logger.info("Server started")
-
-    server.run(loop, port, ip)
-
+    :param loop: Asyncio event loop to pass on to server application
+    :param app:  TurmsApp Application to run.
+    :param port: Port to listen in for connections.
+    :param ip:   Server host name to use.
+    """
+    app.run(loop, port, ip)
     return
 
 
-def stop_server(loop, server):
-    """ Stop server running in separate thread """
+def stop_server(loop, app):
+    """ Stop server running in separate thread
 
-    # -- HTTPServer --
-    # ioloop = tornado.ioloop.IOLoop.instance()
-    # logger.info("Server stopping.")
-    # asyncio.get_event_loop().call_soon_threadsafe(server.close_all_connections())
-    # asyncio.get_event_loop().stop()
-    # logger.info("Server stopped.")
-    # #ioloop.add_callback(ioloop.close)
-
-    logger.info("Server stopping.")
-    asyncio.get_event_loop().call_soon_threadsafe(server.stop, loop)
+    :param loop  Currently running asyncio.event_loop of target thread
+    :param app   TurmsApp server handling application object
+    """
+    logger.info("Server stopping...")
+    asyncio.get_event_loop().call_soon_threadsafe(app.stop, loop)
     loop.stop()
     return
 
 
-def start_server_thread(loop, server, port, ip):
+def start_server_thread(loop, app, port, ip):
+    """ Start TurmsApp application to run server in separate daemon thread.
+    Call for "App.run()" with given parameters to set up asynchronous tornado
+    server in daemon thread.
 
-    server_th = threading.Thread(target=start_server, args=[loop, server, port, ip])
+    :param loop Asyncio event loop to pass to function
+    :param app  Application object to run
+    :param port Port to pass to application function
+    :param ip   Host name to pass to application function
+    """
+
+    server_th = threading.Thread(target=start_server, args=[loop, app, port, ip])
     server_th.daemon = True
     server_th.start()
     return server_th

@@ -4,17 +4,21 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 import threading
+import tkinter.filedialog
 
+import pathvalidate
 import tornado.ioloop
 
+import downloader
 import server
 import connection_handler
 import logger
 import asyncio
-import tornado.gen
-
+from pathvalidate import validate_filename, sanitize_filename
+import traceback
 
 class Controller:
+
     __view = None
     __app = None
     __window = None
@@ -23,41 +27,108 @@ class Controller:
     __server_handle = None
     __server_loop = None
 
-    def __init__(self, app, window, view):
-        self.__app = app           # TODO: Weakref to avoid cyclic reference
+    def __init__(self, widgets, window, view):
+        """:type Controller: Turms Application controller class
+        that loosely follows controller functionality of MVC-pattern
+
+        :param widgets  Dictionary of Application widgets and fields to read input from
+                        or pass to View for GUI handling and manipulation
+        :param window
+        :param view
+        """
+
+        self.__widgets = widgets          # TODO: Weakref to avoid cyclic reference
         self.__window = window
         self.__view = view
         self.__conn_handler = connection_handler.ConnectionHandler()
         return
 
     async def connect_to_server(self, event):
-        """ Attempt to connect to specified server. """
+        """ Delegate to create ConnectionHandler instance and for it to
+        attempt to connect to specified server. Values for server host address and
+        port are read from GUI input fields specified by dictionary passed in
+        initiation of current Controller object.
 
-        self.state_to_connect()
-        ip = self.__app.widget("ip").get()
-        port = self.__app.widget("port").get()
+        :param event: Tkinter event fired when action to call function was taken
+        """
+
+        self.state_to_connect()             # Called already here so input fields can be
+                                            # locked before reading values.
+        ip = self.__widgets["ip"].get()
+        port = self.__widgets["port"].get()
+
+        success = False
 
         if self.__conn_handler:
-            succ = await self.__conn_handler.connect_to_server(ip, port, self)
+            success = await self.__conn_handler.connect_to_server(ip, port, self)
+
+        if not success:
+            self.state_to_disconnect()
+        return
 
     async def disconnect_from_server(self, event):
-        """ Disconnect connection from server. """
+        """ Delegate for ConnectionHandler instance to close connection to server if connected.
+
+        :param event: Tkinter event fired when action to call function was taken
+        """
+        success = False
 
         if self.__conn_handler:
-            self.__conn_handler.disconnect_from_server(self)
+            success = self.__conn_handler.disconnect_from_server(self)
+
+        if success:
+            self.state_to_disconnect()
+        return
+
+    async def fetch_file_from_server(self, event):
+        """ Request to fetch specified file from server """
+
+        try:
+            filename = event
+
+            # Sanitize filename by replacing invalid characters with "" and
+            # adding underscore to filename if it is a name reserved by system.
+            san_name = sanitize_filename(filename)
+
+            # Validate filename by checking that name is within platform
+            # length limits and sanitation was successful.
+            validate_filename(san_name)
+
+            location = self.__widgets["view"].prompt_save_location()
+
+            # Downloader class sanitizes and validates download destination internally.
+            #   Raises pathvalidate.ValidationError if validation is not successful.
+            download = downloader.Downloader(location)
+
+            await self.__conn_handler.fetch_file_from_server(download, filename)
+
+        except pathvalidate.ValidationError:
+            logger.error(traceback.print_exc())
+            return
 
     async def start_server(self, event):
-        """ Create server if necessary and start it up. """
+        """ Delegate to create instance of TurmsApp application and to
+        start it up in daemon thread.
+
+        :param event:   Tkinter event fired when action to call function was taken
+        :return:        None
+        --------------------------------------------------------------
+        Note:
+            # Joining server thread is done here because calling
+            # 'threading.Thread.join()' when stopping the server would
+            # block async loop and prevent finishing execution.
+            # Calling with timeout at shutdown would also block and finally kill
+            # thread every time without actually finishing execution of the loop.
+            #
+            # Server thread is also flagged as daemon and will thus
+            # be killed along the main thread when program exits.
+
+        """
         ip = "127.0.0.1"
 
         # Join server thread to ensure we can set up server again.
-        # This is done here because calling join when stopping the server
-        # will block async loop and deadlock.
-        # ---
-        # For this server thread is also flagged as daemon and will
-        # thus be killed along the main thread when program exits.
         if self.__server_handle:
-            self.__server_handle.join()
+            self.__server_handle.join(10)
 
         if not self.__server:
             self.__server = server.create_server(ip)
@@ -67,7 +138,20 @@ class Controller:
         return
 
     async def stop_server(self, event):
-        """ Stop server instance if it is running and join server thread """
+        """ Delegate for daemon server to be shut down if it is running.
+        --------------------------------------------------------------
+
+        :param event:   Tkinter event fired when action to call function was taken
+        :return:        None
+        Note:
+            # Daemon thread is not joined when stopping server since 'threading.Thread.join()'
+            # would block asyncio loop execution and hang the program.
+            # Using timeout would also result in server thread never finishing
+            # and being killed after timeout instead.
+            # Thus, joining to main thread is done when server is started again instead
+            # or - as server thread is daemon - when program and main thread finishes
+            # execution.
+        """
         if self.__server:
             server.stop_server(self.__server_loop, self.__server)
 
@@ -76,10 +160,22 @@ class Controller:
         pass
 
     def state_to_connect(self):
+        """ Delegate for View to change GUI state to being connected to server """
         self.__view.state_to_connect()
 
     def state_to_disconnect(self):
+        """ Delegate for View to change GUI state to not being connected to server """
         self.__view.state_to_disconnect()
 
+    def state_to_server_running(self):
+        """ Delegate for View to change GUI state to server running """
+        pass
+
+    def state_to_server_stopped(self):
+        """ Delegate for View to change GUI state to server not running """
+        pass
+
     def update_filetree(self, items):
+        """ Delegate for View to printout details if given file list to GUI """
         self.__view.print_out_filetree(items)
+

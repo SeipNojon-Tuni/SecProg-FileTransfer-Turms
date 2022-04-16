@@ -15,19 +15,29 @@ import view
 
 
 def call_async(target):
-    """
-    Call an asynchronous function so that it is executed without waiting
+    """ Fire and forget application events by creating new asyncio event_loop
+    when necessary and queueing functions for asynchronous execution.
 
-    :param target : Target function to be executed.
+    Either create new task with 'asyncio.get_event_loop().create_task()' or
+    if a loop is already running or start up a new loop and start execution
+    of first function with 'asyncio.get_event_loop.run_until_complete()'.
+
+    Expect function to return after execution finishes, but
+    omit possible returned 'Future' object.
+
+    :param target : Target asynchronous function to be executed.
     """
     # Create new event loop if necessary and add the new coroutine to loop.
     try:
         asyncio.get_event_loop()
     except RuntimeError:
-        logger.info(sys.exc_info())
         asyncio.new_event_loop()
     finally:
-        asyncio.get_event_loop().run_until_complete(target)
+        loop = asyncio.get_event_loop()
+        if not loop.is_running():
+            loop.run_until_complete(target)
+        else:
+            loop.create_task(target)
 
 
 class App:
@@ -37,13 +47,9 @@ class App:
     __controller = None
     __widgets = {}
 
-    def __init__(self):
-        return
-
     def run(self):
-        """
-        Run through app initialization actions
-        such as creating window and controllers for
+        """ Run through app initialization actions
+        of creating window and controllers for
         application.
         """
 
@@ -51,7 +57,7 @@ class App:
         # controller object for input handling.
         self.__window = self.create_window()
         self.__view = view.View(self.__window, self.__widgets)
-        self.__controller = ctrl.Controller(self, self.__window, self.__view)
+        self.__controller = ctrl.Controller(self.__widgets, self.__window, self.__view)
 
         # Create loggers
         self.__gui_pipeline = self.__view.get_console(self.__widgets["console"])
@@ -65,8 +71,7 @@ class App:
         self.__window.mainloop()
 
     def create_window(self):
-        """
-        Create tkinter window to serve as
+        """ Create tkinter window to serve as
         GUI for the application and setup
         elements for the window.
 
@@ -148,5 +153,6 @@ class App:
         return window
 
     def widget(self, name):
+
         return self.__widgets[name]
 
