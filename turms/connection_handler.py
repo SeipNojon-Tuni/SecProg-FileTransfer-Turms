@@ -46,11 +46,6 @@ class ConnectionHandler:
 
             logger.info("Connecting to " + url)
 
-            # response = await self.make_request("/")  # Default path "/"
-            #
-            # logger.info(str(response.code))
-            # logger.info(response.body)
-
             return await self.fetch_server_content(controller)
 
         except tornado.simple_httpclient.HTTPTimeoutError:
@@ -71,10 +66,12 @@ class ConnectionHandler:
         # Could not establish connection
         except ConnectionError:
             logger.warning("Failed to establish connection.")
+            self.disconnect_from_server(controller)
             return False
 
     def disconnect_from_server(self, controller):
         """ Attempt to disconnect from server if connection is active
+        and clean up connection objects and filetree in View.
 
         :param controller:  Controller class of Application
         :return:            Whether disconnection was successful
@@ -85,8 +82,9 @@ class ConnectionHandler:
 
         self.__server_url = None
 
-        controller.update_filetree([])      # Empty filetree in GUI when not
-                                            # connected
+        controller.update_filetree([])  # Empty filetree in GUI when not connected
+        controller.state_to_disconnect()
+
         return True
 
     async def make_request(self, path="/"):
@@ -99,8 +97,7 @@ class ConnectionHandler:
         """
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, path)
-            #response = await self.__session.fetch(url)
-            response = await self.__session.fetch(tornado.httpclient.HTTPRequest(url, "OPTIONS"))
+            response = await self.__session.fetch(tornado.httpclient.HTTPRequest(url))
             return response
         return None
 
@@ -113,7 +110,11 @@ class ConnectionHandler:
         try:
             response = await self.make_request("/dir/")
 
-            logger.info("Response status " + str(response.code))
+            if not response:
+                logger.error("Could not parse response.")
+                return
+
+            logger.info("Response: %s %s " % ( str(response.code), response.reason) )
 
             filenames = json.loads(response.body)
 
@@ -133,23 +134,34 @@ class ConnectionHandler:
             controller.update_filetree(san_names)
             return True
 
-        except ValueError:
-            logger.warning("Cannot parse response.")
-            return False
-
         except tornado.httpclient.HTTPClientError:
-            details, value, traceback = sys.exc_info()
-            logger.info("Reason: %s" % value )
+            type, value, traceback = sys.exc_info()
+            logger.warning("%s" % value )
             return False
 
         except OSError:
-            logger.error(sys.exc_info())
+            type, value, trace = sys.exc_info()
+            logger.error(value)
             return False
 
     async def fetch_file_from_server(self, filename, downloader):
         """ Request to download a file from server. """
-        dl_url =  "/download/%s" % (filename)
-        response = await self.make_request(dl_url)
-        downloader.write_to_file(response.body)
+        try:
+            dl_url =  "/download/%s" % (filename)
+            response = await self.make_request(dl_url)
+
+            if not response:
+                logger.error("Could not parse response.")
+                return
+
+            logger.info("Response: %s %s " % (str(response.code), response.reason))
+
+            downloader.write_to_file(response.body)
+
+        except tornado.httpclient.HTTPClientError:
+            type, value, traceback = sys.exc_info()
+            logger.warning("%s" % value)
+            return False
+
 
 

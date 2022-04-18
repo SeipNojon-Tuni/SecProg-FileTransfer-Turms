@@ -3,6 +3,8 @@
 #   to server requests from single user connection.
 #
 #   Sipi Ylä-Nojonen, 2022
+import logging
+
 import pathvalidate
 from tornado import web, iostream, gen
 import tornado.httputil as tutil
@@ -27,6 +29,7 @@ class TurmsRequestHandler(web.RequestHandler):
     # so prevent any unauthorized modification of server
     # content by not accepting any other methods.
     SUPPORTED_METHODS = ("GET", "HEAD")
+    __logger = "turms.req_handler"
 
     def set_default_headers(self):
         pass
@@ -74,8 +77,6 @@ class TurmsRequestHandler(web.RequestHandler):
     def ok(self):
         """ Construct basic response with status '200 OK' """
         self.set_status(200, tutil.responses[200])
-        self.flush()
-        self.finish()
 
 # ---------------------------------------------------
 # Path specific request handlers for different request paths
@@ -90,7 +91,7 @@ class IndexRequestHandler(TurmsRequestHandler):
 
     def get(self):
         """ Create response for 'GET' method request for path '/' """
-        self.set_status(200)
+        self.ok()
         self.write("The index.")
         self.flush()
         self.finish()
@@ -103,6 +104,7 @@ class DirectoryRequestHandler(TurmsRequestHandler):
 
     def get(self):
         """ Create response for 'GET' method request in path '/dir/' """
+
         self.set_status(200)
         # Write list of available files for download as json object
         files = sfh.fetch_server_content()
@@ -114,13 +116,16 @@ class DirectoryRequestHandler(TurmsRequestHandler):
 
 class FileRequestHandler(TurmsRequestHandler):
     def head(self):
-        """ Create response for 'HEAD' method request in path '/content/*.*' """
+        """ Create response for 'HEAD' method request in path '/download/*.*' """
         self.ok()
 
     def get(self):
-        """ Create response for 'GET' method request in path '/content/*.*' """
+        """ Create response for 'GET' method request in path '/download/*.*' """
         try:
-            filename = json.loads(self.request.body)
+            # File name should be the last part of the url.
+            filename = self.request.path.split("/")[-1]
+
+           # logger.info_server("User %s requested %s " % (self.request.host_name, filename))
 
             # ServerFileHandler does sanitation and filename validation internally.
             # Raises pathvalidate.ValidationError if validation fails.
@@ -146,22 +151,23 @@ class FileRequestHandler(TurmsRequestHandler):
 
                     # Less than one chunk
                     else:
-                        chunk = file.read()
-
+                        chunk = file.read(size-read)
+                        read += len(chunk)
                     try:
+                        # Each chunk will be sent to client on flush
+                        self.ok()
                         self.write(chunk)
                         self.flush()
                     except iostream.StreamClosedError:
-                        logger.warning("IoStream to user %s was closed prematurely." % self.request.host_name)
                         break
                     finally:
                         del chunk
                         # Pause the coroutine so other handlers can run
                         gen.sleep(0.000000001)  # 1 nanosecond
-            return
+                self.finish()
+                file.close()
+                return
 
-        except json.JSONDecodeError:
-            self.bad_request()
         except pathvalidate.ValidationError:
             # Respond with 'Bad request' if filename is
             # malformed or not a valid filename.

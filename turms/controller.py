@@ -15,7 +15,7 @@ import connection_handler
 import logger
 import asyncio
 from pathvalidate import validate_filename, sanitize_filename
-import traceback
+import sys
 
 class Controller:
 
@@ -62,10 +62,6 @@ class Controller:
         if self.__conn_handler:
             success = await self.__conn_handler.connect_to_server(ip, port, self)
 
-        if not success:
-            self.state_to_disconnect()
-        return
-
     async def disconnect_from_server(self, event):
         """ Delegate for ConnectionHandler instance to close connection to server if connected.
 
@@ -76,15 +72,12 @@ class Controller:
         if self.__conn_handler:
             success = self.__conn_handler.disconnect_from_server(self)
 
-        if success:
-            self.state_to_disconnect()
-        return
-
     async def fetch_file_from_server(self, event):
         """ Request to fetch specified file from server """
 
         try:
-            filename = event
+            focus = self.__widgets["filetree"].focus()
+            filename = self.__widgets["filetree"].item(focus)["values"][0]
 
             # Sanitize filename by replacing invalid characters with "" and
             # adding underscore to filename if it is a name reserved by system.
@@ -94,17 +87,28 @@ class Controller:
             # length limits and sanitation was successful.
             validate_filename(san_name)
 
-            location = self.__widgets["view"].prompt_save_location()
+            location = self.__view.prompt_save_location(san_name)
+
+            # User cancelled action.
+            if location == "":
+                return
+
+            logger.info("Requesting file %s. " % san_name)
 
             # Downloader class sanitizes and validates download destination internally.
             #   Raises pathvalidate.ValidationError if validation is not successful.
             download = downloader.Downloader(location)
 
-            await self.__conn_handler.fetch_file_from_server(download, filename)
-
-        except pathvalidate.ValidationError:
-            logger.error(traceback.print_exc())
+            await self.__conn_handler.fetch_file_from_server(san_name, download)
+        # User clicked on non-existent item in tree.
+        except IndexError:
+            logger.warning("Unknown item.")
             return
+
+        # except pathvalidate.ValidationError:
+        #     detail, value, traceback = sys.exc_info()
+        #     logger.error("Invalid file path %s" % value)
+        #     return
 
     async def start_server(self, event):
         """ Delegate to create instance of TurmsApp application and to

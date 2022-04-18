@@ -11,6 +11,7 @@ import asyncio
 import console_widget
 import controller as ctrl
 import logger
+import server
 import view
 
 
@@ -64,7 +65,7 @@ class App:
         sys.stdout = self.__gui_pipeline
 
         logger.create_logger()
-        logger.info("Application initialization finished.")
+        logger.info("--- Application initialization finished. ---")
 
         logger.set_log_level(logging.DEBUG)
 
@@ -80,28 +81,27 @@ class App:
 
         # Window size and name settings
         window = tk.Tk()
-        window.minsize(880, 500)
+        window.minsize(1280, 500)
         window.title("Turms File Transfer")
         window.iconphoto(False, tk.PhotoImage(file="icon.png"))
+        window.geometry("1280x500")
 
         # -- Main frame container --
         mframe = tk.Frame(window)
-        mframe.grid(row=0, column=0)
-        mframe.columnconfigure(0, minsize=200)
-        mframe.columnconfigure(1, minsize=200)
-        mframe.columnconfigure(2, minsize=200)
+        mframe.grid(row=0, column=0, sticky="NSEW")
 
         # -- Left side frame --
         lframe = tk.Frame(mframe)
-        lframe.grid(row=0, column=0, columnspan=2)
+        lframe.grid(row=0, column=0, columnspan=2, sticky="NSEW")
 
         # -- Right side frame --
         rframe = tk.Frame(mframe)
-        rframe.grid(row=0, column=2, columnspan=1)
+        rframe.grid(row=0, column=2, sticky="NSEW")
 
         # -- Console window and prompt -- Left side
         console = console_widget.Console(master=lframe)
-        console.grid(row=0, column=0, padx=2, pady=1)
+        console.grid(row=0, column=0, padx=2, pady=1, sticky="WE")
+        console.columnconfigure(0, minsize=800)
 
         # -- Filetree view -- Right side
         filetree = ttk.Treeview(rframe, columns=["filename", "filesize"])
@@ -119,6 +119,9 @@ class App:
         port_label.grid(row=3, column=0, padx=1, pady=2, columnspan=2, sticky="E")
         port = ttk.Entry(rframe)
         port.grid(row=4, column=0, padx=1, pady=2, columnspan=2, sticky="E")
+
+        ip_addr.insert(tk.END, server.DEFAULT_HOST)
+        port.insert(tk.END, str(server.DEFAULT_PORT))
 
         # -- Connect button / disconnect button --
         c_button = ttk.Button(master=rframe, text="Connect")
@@ -149,6 +152,8 @@ class App:
         dc_button.bind("<Button-1>", lambda event: call_async(self.__controller.disconnect_from_server(event)))
         s_button.bind("<Button-1>", lambda event: call_async(self.__controller.start_server(event)))
         sstop_button.bind("<Button-1>", lambda event: call_async(self.__controller.stop_server(event)))
+        filetree.bind("<Double-1>", lambda event: call_async(self.__controller.fetch_file_from_server(event)))
+
 
         return window
 

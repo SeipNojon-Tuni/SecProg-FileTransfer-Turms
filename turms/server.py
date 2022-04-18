@@ -47,8 +47,9 @@ class TurmsApp(tornado.web.Application):
 
         :param host: Host name of server, define loopback options
         """
-        handlers =  [ ( r"/", rh.IndexRequestHandler),
-                        (r"/dir/", rh.DirectoryRequestHandler)]
+        handlers =  [ ( r"/", rh.IndexRequestHandler ),
+                      ( r"/dir/", rh.DirectoryRequestHandler ),
+                      ( r"/download/*.*", rh.FileRequestHandler )]
 
             # [
             #         (HostMatches(host),

@@ -34,7 +34,6 @@ def create_logger():
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
 
-    smsg = {"server" : "SERVER"}
     formatter = logging.Formatter("<%(asctime)s> %(name)s - %(levelname)s - %(message)s")
 
     console_formatter = logging.Formatter("<%(asctime)s> %(levelname)s: %(message)s")
@@ -48,6 +47,8 @@ def create_logger():
     logger.addHandler(console_handler)
     logger.addHandler(errhandler)
 
+    info("Application logger setup finished.")
+
     # Add server logging to separate file and GUI console
     server_log = DEFAULT_SERVER_LOG
     sf_handler = logging.FileHandler(server_log)
@@ -55,9 +56,17 @@ def create_logger():
     sf_handler.setFormatter(formatter)
     sc_handler.setFormatter(sconsole_formatter)
 
-    server_logger = logging.getLogger("tornado.access")
-    server_logger.addHandler(sf_handler)
-    server_logger.addHandler(sc_handler)
+    acc_logger = logging.getLogger("tornado.access")
+    app_logger = logging.getLogger("tornado.application")
+    gen_logger = logging.getLogger("tornado.general")
+    acc_logger.addHandler(sf_handler)
+    acc_logger.addHandler(sc_handler)
+
+    app_logger.addHandler(sf_handler)
+    app_logger.addHandler(sc_handler)
+
+    gen_logger.addHandler(sf_handler)
+    gen_logger.addHandler(sc_handler)
 
     return logger
 
@@ -74,30 +83,23 @@ def set_log_level(level):
     except ValueError:
         warning("Undefined level for logger.")
 
-
-def get():
-    return logging.getLogger("turms.logger")
-
-
 # TODO: SANITIZE LOGGING INPUT
 
 # Shortcuts for different levels of logging
-# with 'getLogger("turms.logger").method(msg)'
-def log(lvl, msg):
-    get().log(level=lvl, msg=msg)
+# with 'getLogger(name).method(msg)'
+def log(lvl, msg, name="turms.logger"):
+    logging.getLogger(name).log(level=lvl, msg=msg)
 
 
-def info(msg):
-    get().info(msg)
+def info(msg, name="turms.logger"):
+    logging.getLogger(name).info("%s" % msg)
 
 
-def warning(msg):
-    get().warning(msg)
+def warning(msg, name="turms.logger"):
+    logging.getLogger(name).warning("%s" % msg)
 
 
-def error(msg):
-    get().error(msg)
+def error(msg, name="turms.logger"):
+    logging.getLogger(name).error("%s" % msg)
 
-def debug():
-    logging.getLogger("turms.debug")
 

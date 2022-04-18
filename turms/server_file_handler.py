@@ -11,6 +11,8 @@ from os.path import isfile, join
 import json
 from pathvalidate import sanitize_filename, validate_filename
 
+import logger
+
 CONTENT_PATH = "./content"
 
 def raw_server_content():
@@ -40,7 +42,7 @@ def get_file_object(filename):
     # Open file to be read as bytes for server send to user
     if not san_name in raw_server_content():
         return None
-
-    path = CONTENT_PATH + "/" + san_name
-    file = open(path, "rb")
-    return file
+    else:
+        path = CONTENT_PATH + "/" + san_name
+        file = open(path, "rb")
+        return file

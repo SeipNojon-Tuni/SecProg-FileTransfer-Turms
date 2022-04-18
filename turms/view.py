@@ -7,7 +7,9 @@ import cgi
 import logging
 import tkinter as tk
 from tkinter import filedialog
+from pathvalidate import sanitize_filename, validate_filename
 
+from downloader import DEFAULT_DL_DIRECTORY
 
 class Console:
     def __init__(self, widget):
@@ -70,7 +72,26 @@ class View(object):
             # TODO: +++++++++++++++++++++++++++
             tree.insert("", tk.END, value=parsed)
 
-    def prompt_save_location(self):
-        return tk.filedialog.asksaveasfilename()
+    def prompt_save_location(self, filename):
+
+        san_name = sanitize_filename(filename)
+
+        # Validate filename by checking that name is within platform
+        # length limits and sanitation was successful.
+        validate_filename(san_name, platform="auto")
+        splitname = san_name.split(".")
+        extension = ""
+
+        name = ""
+
+        # File extension should be the last part in string split by "."
+        # other parts are considered part of the filename.
+        if len(splitname) >= 2:
+            extension = splitname[-1]
+            splitname.pop(-1)
+            name = "".join(splitname)
+
+
+        return tk.filedialog.asksaveasfilename(defaultextension=extension, initialdir=DEFAULT_DL_DIRECTORY, initialfile=name)
 
 
