@@ -28,7 +28,7 @@ class TurmsRequestHandler(web.RequestHandler):
     # No need to support other methods than GET and HEAD
     # so prevent any unauthorized modification of server
     # content by not accepting any other methods.
-    SUPPORTED_METHODS = ("GET", "HEAD", "POST")
+    SUPPORTED_METHODS = ("GET", "HEAD")
     __logger = "turms.req_handler"
 
     def set_default_headers(self):

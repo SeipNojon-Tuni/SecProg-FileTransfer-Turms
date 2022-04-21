@@ -104,33 +104,6 @@ class ConnectionHandler:
             url = "%s%s" % (self.__server_url, path)
             request = tornado.httpclient.HTTPRequest(url, method="GET")
             response = await self.__session.fetch(request)
-
-            # REMOVE THIS
-            print(response.headers)
-
-            return response
-        return None
-
-    async def post_request(self, path="/"):
-        """
-        Make a POST request to the server
-
-        :param path: url path to fetch.
-        :return:     Response got from the server
-        """
-        if self.__session and self.__server_url:
-            url = "%s%s" % (self.__server_url, path)
-            request = tornado.httpclient.HTTPRequest(url, method="POST")
-            request.body = json.dumps("HELOO")
-
-            xsrf1 = self.__cookies.split("=")[1]
-            xsrf = xsrf1.split(";")[0]
-
-            print("XSRF " + xsrf)
-
-            request.headers.add("X-Xsrftoken", xsrf)
-
-            response = await self.__session.fetch(request)
             return response
         return None
 
