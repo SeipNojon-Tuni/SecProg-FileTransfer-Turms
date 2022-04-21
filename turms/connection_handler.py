@@ -14,9 +14,11 @@ import tornado.httpclient
 import json
 from pathvalidate import sanitize_filename, validate_filename
 
+
 class ConnectionHandler:
     __session = None
     __server_url = None
+    __cookies = None
 
     def __init__(self):
         pass
@@ -30,15 +32,20 @@ class ConnectionHandler:
         :return:        Whether connection was successful.
         """
 
-        try:
-            # Allow connection only when no former connection is active.
-            if self.__session or self.__server_url:
-                logger.info("Already connected to a server. Please terminate connection first.")
-                return
+        # Allow connection only when no former connection is active.
+        if self.__session or self.__server_url:
+            logger.info("Already connected to a server. Please terminate connection first.")
+            return
 
+        try:
             ip = ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
             portint = int(port)
+        except ValueError:
+            logger.warning("Invalid ip-address or port given.")
+            self.disconnect_from_server(controller)
+            return False
 
+        try:
             url = "http://%s:%s" % (ipaddr, portint)
 
             self.__server_url = url
@@ -46,22 +53,20 @@ class ConnectionHandler:
 
             logger.info("Connecting to " + url)
 
+            await self.initial_request()
+
+            # REMOVE
+            await self.post_request("/")
+            logger.info("DONE /")
+            await self.post_request("/dir/")
+            logger.info("DONE /dir/")
+
             return await self.fetch_server_content(controller)
 
         except tornado.simple_httpclient.HTTPTimeoutError:
-             logger.error("Connection timed out.")
-             self.disconnect_from_server(controller)
-             return False
-
-        except ValueError:
-             logger.warning("Invalid ip-address or port given.")
-             self.disconnect_from_server(controller)
-             return False
-
-        # except AttributeError:
-        #      logger.warning("Failed to get response from server.")
-        #      logger.debug()
-        #      return False
+            logger.error("Connection timed out.")
+            self.disconnect_from_server(controller)
+            return False
 
         # Could not establish connection
         except ConnectionError:
@@ -79,6 +84,7 @@ class ConnectionHandler:
         if self.__session:
             self.__session.close()
             self.__session = None
+            self.__xsrf = None
 
         self.__server_url = None
 
@@ -87,20 +93,68 @@ class ConnectionHandler:
 
         return True
 
-    async def make_request(self, path="/"):
+    async def get_request(self, path="/"):
         """
-        Make a request to the server
+        Make a GET request to the server
 
-        :param meth: Request method, compliant with HTTP/1.1
         :param path: url path to fetch.
         :return:     Response got from the server
         """
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, path)
-            response = await self.__session.fetch(tornado.httpclient.HTTPRequest(url))
+            request = tornado.httpclient.HTTPRequest(url, method="GET")
+            response = await self.__session.fetch(request)
+
+            # REMOVE THIS
+            print(response.headers)
+
             return response
         return None
 
+    async def post_request(self, path="/"):
+        """
+        Make a POST request to the server
+
+        :param path: url path to fetch.
+        :return:     Response got from the server
+        """
+        if self.__session and self.__server_url:
+            url = "%s%s" % (self.__server_url, path)
+            request = tornado.httpclient.HTTPRequest(url, method="POST")
+            request.body = json.dumps("HELOO")
+
+            xsrf1 = self.__cookies.split("=")[1]
+            xsrf = xsrf1.split(";")[0]
+
+            print("XSRF " + xsrf)
+
+            request.headers.add("X-Xsrftoken", xsrf)
+
+            response = await self.__session.fetch(request)
+            return response
+        return None
+
+    async def initial_request(self):
+        """ Send initial request and create connection to server,
+        set necessary tokens etc.
+        """
+        if self.__session and self.__server_url:
+            url = "%s%s" % (self.__server_url, "/")
+            request = tornado.httpclient.HTTPRequest(url, "GET")
+            response = await self.__session.fetch(request)
+
+            # REMOVE THIS
+            print(response.headers)
+
+            try:
+                self.__cookies = response.headers["Set-Cookie"]
+            except KeyError:
+                self.__cookies = None
+
+            print(self.__cookies)
+
+            return response
+        return
 
     async def fetch_server_content(self, controller):
         """ Request server content and print it to view
@@ -108,11 +162,11 @@ class ConnectionHandler:
         :return: Whether fetching was successful
         """
         try:
-            response = await self.make_request("/dir/")
+            response = await self.get_request("/dir/")
 
             if not response:
                 logger.error("Could not parse response.")
-                return
+                return False
 
             logger.info("Response: %s %s " % ( str(response.code), response.reason) )
 
@@ -136,7 +190,7 @@ class ConnectionHandler:
 
         except tornado.httpclient.HTTPClientError:
             type, value, traceback = sys.exc_info()
-            logger.warning("%s" % value )
+            logger.warning("%s" % value)
             return False
 
         except OSError:
@@ -147,8 +201,8 @@ class ConnectionHandler:
     async def fetch_file_from_server(self, filename, downloader):
         """ Request to download a file from server. """
         try:
-            dl_url =  "/download/%s" % (filename)
-            response = await self.make_request(dl_url)
+            dl_url = "/download/%s" % filename
+            response = await self.get_request(dl_url)
 
             if not response:
                 logger.error("Could not parse response.")

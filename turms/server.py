@@ -57,7 +57,15 @@ class TurmsApp(tornado.web.Application):
             #             (r"/dir/", rh.DirectoryRequestHandler)]
             #          )
             #         ]
-        settings = {}
+        settings = {
+            "xsrf_cookies": True                        # Prevent Cross site request forgery,
+                                                        # Tornado web comes with built-in support
+                                                        # for using XSRF-token.
+                                                        # Technically this is irrelevant since application
+                                                        # handlers only allow "HEAD" and "GET" methods
+                                                        # So no server modification should be possible.
+
+        }
         super().__init__(handlers, **settings)
 
     def run(self, loop, port=DEFAULT_PORT, host="127.0.0.1"):

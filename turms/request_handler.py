@@ -28,7 +28,7 @@ class TurmsRequestHandler(web.RequestHandler):
     # No need to support other methods than GET and HEAD
     # so prevent any unauthorized modification of server
     # content by not accepting any other methods.
-    SUPPORTED_METHODS = ("GET", "HEAD")
+    SUPPORTED_METHODS = ("GET", "HEAD", "POST")
     __logger = "turms.req_handler"
 
     def set_default_headers(self):
@@ -83,6 +83,7 @@ class TurmsRequestHandler(web.RequestHandler):
 # eg.   --> IndexRequestHandler for "/"
 #       --> DirectoryRequestHandler for "/dir/"
 
+
 class IndexRequestHandler(TurmsRequestHandler):
 
     def head(self):
@@ -91,10 +92,12 @@ class IndexRequestHandler(TurmsRequestHandler):
 
     def get(self):
         """ Create response for 'GET' method request for path '/' """
+        self.set_cookie("_xsrf", self.xsrf_token)
         self.ok()
         self.write("The index.")
         self.flush()
         self.finish()
+
 
 class DirectoryRequestHandler(TurmsRequestHandler):
 
@@ -114,6 +117,10 @@ class DirectoryRequestHandler(TurmsRequestHandler):
         self.flush()
         self.finish()
 
+    def post(self):
+        self.not_found()
+
+
 class FileRequestHandler(TurmsRequestHandler):
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """
@@ -125,7 +132,7 @@ class FileRequestHandler(TurmsRequestHandler):
             # File name should be the last part of the url.
             filename = self.request.path.split("/")[-1]
 
-           # logger.info_server("User %s requested %s " % (self.request.host_name, filename))
+            # logger.info_server("User %s requested %s " % (self.request.host_name, filename))
 
             # ServerFileHandler does sanitation and filename validation internally.
             # Raises pathvalidate.ValidationError if validation fails.
