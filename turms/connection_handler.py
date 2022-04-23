@@ -55,12 +55,6 @@ class ConnectionHandler:
 
             await self.initial_request()
 
-            # REMOVE
-            await self.post_request("/")
-            logger.info("DONE /")
-            await self.post_request("/dir/")
-            logger.info("DONE /dir/")
-
             return await self.fetch_server_content(controller)
 
         except tornado.simple_httpclient.HTTPTimeoutError:

@@ -8,6 +8,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import asyncio
 
+import config
 import console_widget
 import controller as ctrl
 import logger
@@ -54,11 +55,13 @@ class App:
         application.
         """
 
+        self.__cfg = config.create_config()
+
         # Create tkinter window for app and
         # controller object for input handling.
         self.__window = self.create_window()
         self.__view = view.View(self.__window, self.__widgets)
-        self.__controller = ctrl.Controller(self.__widgets, self.__window, self.__view)
+        self.__controller = ctrl.Controller(self.__widgets, self.__window, self.__view, self.__cfg)
 
         # Create loggers
         self.__gui_pipeline = self.__view.get_console(self.__widgets["console"])

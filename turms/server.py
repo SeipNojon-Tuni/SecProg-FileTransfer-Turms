@@ -35,7 +35,12 @@ class TurmsApp(tornado.web.Application):
     # TODO: Check StaticFileHandler implementation and
     # TODO: Host name pattern against DNS rebound attack
 
-    def __init__(self, host):
+    __host = DEFAULT_HOST
+    __port = DEFAULT_PORT
+    __cfg = None
+
+
+    def __init__(self, cfg, port=DEFAULT_PORT, host=DEFAULT_HOST):
         """
         Tornado web application initialized for delegating request handling through HTTPServer class
 
@@ -45,12 +50,26 @@ class TurmsApp(tornado.web.Application):
 
         https://www.tornadoweb.org/en/stable/web.html#application-configuration
 
+        :param cfg:  Python ConfigParser configuration
+        :param port: Port to listen to when service is run
         :param host: Host name of server, define loopback options
         """
+        self.__cfg = cfg
+
+        # Prioritize initial values if available as: user supplied > config > default
+        if port is DEFAULT_PORT:
+            self.__port = int(cfg["SERVER"].get("Port", DEFAULT_PORT))
+        else:
+            self.__port = port
+
+        if host is DEFAULT_HOST:
+            self.__host = cfg["SERVER"].get("Host", DEFAULT_HOST)
+        else:
+            self.__host = host
+
         handlers =  [ ( r"/", rh.IndexRequestHandler ),
                       ( r"/dir/", rh.DirectoryRequestHandler ),
                       ( r"/download/*.*", rh.FileRequestHandler )]
-
             # [
             #         (HostMatches(host),
             #             [ ( r"/", rh.IndexRequestHandler),
@@ -68,20 +87,18 @@ class TurmsApp(tornado.web.Application):
         }
         super().__init__(handlers, **settings)
 
-    def run(self, loop, port=DEFAULT_PORT, host="127.0.0.1"):
+    def run(self, loop):
         """
         Start up the server in asyncio.event_loop instance and
         start listening to connections in given port.
 
         :param loop Target event loop to use for executing
                     asynchronous server loop in.
-        :param port Port to listen to for connections
-        :param host Host-address to use, define loopback options
         """
-        logger.info("Starting server in port " + str(port))
+        logger.info("Starting server in port " + str(self.__port))
 
         asyncio.set_event_loop(loop)
-        self.__httpserver = self.listen(port, host)
+        self.__httpserver = self.listen(self.__port, str(self.__host))
         loop.run_forever()
 
 
@@ -96,20 +113,23 @@ class TurmsApp(tornado.web.Application):
         return
 
 
-def create_server(ip):
-    """ Initialize server class object with given host address """
-    return TurmsApp(ip)
+def create_server(cfg, port, ip):
+    """ Initialize server class object with given host address
+
+    :param cfg:  Python ConfigParser configuration
+    :param port: Port to listen to when service is run
+    :param host: Host name of server, define loopback options
+    """
+    return TurmsApp(cfg, port, ip)
 
 
-def start_server(loop, app, port=DEFAULT_PORT, ip=DEFAULT_HOST):
+def start_server(loop, app):
     """ Initialize and start up server
 
     :param loop: Asyncio event loop to pass on to server application
     :param app:  TurmsApp Application to run.
-    :param port: Port to listen in for connections.
-    :param ip:   Server host name to use.
     """
-    app.run(loop, port, ip)
+    app.run(loop)
     return
 
 
@@ -125,18 +145,16 @@ def stop_server(loop, app):
     return
 
 
-def start_server_thread(loop, app, port, ip):
+def start_server_thread(loop, app):
     """ Start TurmsApp application to run server in separate daemon thread.
     Call for "App.run()" with given parameters to set up asynchronous tornado
     server in daemon thread.
 
     :param loop Asyncio event loop to pass to function
     :param app  Application object to run
-    :param port Port to pass to application function
-    :param ip   Host name to pass to application function
     """
 
-    server_th = threading.Thread(target=start_server, args=[loop, app, port, ip])
+    server_th = threading.Thread(target=start_server, args=[loop, app])
     server_th.daemon = True
     server_th.start()
     return server_th
