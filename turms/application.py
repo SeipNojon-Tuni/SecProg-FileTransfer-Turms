@@ -48,31 +48,35 @@ class App:
     __gui_pipeline = None
     __controller = None
     __widgets = {}
+    __run = False
 
-    def run(self):
+    async def run(self):
         """ Run through app initialization actions
         of creating window and controllers for
         application.
         """
 
-        self.__cfg = config.create_config()
-
         # Create tkinter window for app and
         # controller object for input handling.
         self.__window = self.create_window()
         self.__view = view.View(self.__window, self.__widgets)
-        self.__controller = ctrl.Controller(self.__widgets, self.__window, self.__view, self.__cfg)
+        self.__controller = ctrl.Controller(self.__widgets, self.__window, self.__view)
 
         # Create loggers
         self.__gui_pipeline = self.__view.get_console(self.__widgets["console"])
         sys.stdout = self.__gui_pipeline
+
+        call_async(self.__view.start_listener())
 
         logger.create_logger()
         logger.info("--- Application initialization finished. ---")
 
         logger.set_log_level(logging.DEBUG)
 
-        self.__window.mainloop()
+        self.__run = True
+        await self.async_mainloop()
+
+        #self.__window.mainloop()
 
     def create_window(self):
         """ Create tkinter window to serve as
@@ -157,8 +161,13 @@ class App:
         sstop_button.bind("<Button-1>", lambda event: call_async(self.__controller.stop_server(event)))
         filetree.bind("<Double-1>", lambda event: call_async(self.__controller.fetch_file_from_server(event)))
 
-
         return window
+
+    async def async_mainloop(self):
+        """ Asynchronous version of tkinter.Tk.mainloop()"""
+        while self.__run:
+            self.__window.update()
+            await asyncio.sleep(0.01)
 
     def widget(self, name):
 

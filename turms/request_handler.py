@@ -11,8 +11,10 @@ import tornado.httputil as tutil
 from pathvalidate import validate_filename, sanitize_filename
 import json
 
+import encrypt
 import logger
 import server_file_handler as sfh
+from config import Config as cfg
 
 CHUNK_SIZE = 2048
 
@@ -82,6 +84,7 @@ class TurmsRequestHandler(web.RequestHandler):
 # Path specific request handlers for different request paths
 # eg.   --> IndexRequestHandler for "/"
 #       --> DirectoryRequestHandler for "/dir/"
+#       --> FileRequestHandler for "/download/*"
 
 
 class IndexRequestHandler(TurmsRequestHandler):
@@ -92,7 +95,9 @@ class IndexRequestHandler(TurmsRequestHandler):
 
     def get(self):
         """ Create response for 'GET' method request for path '/' """
-        self.set_cookie("_xsrf", self.xsrf_token)
+        self.set_cookie("_xsrf", self.xsrf_token)           # Add generated xsrf-token to response for
+                                                            # use later. (Unnecessary since no other than
+                                                            # GET and HEAD methods are allowed.)
         self.ok()
         self.write("The index.")
         self.flush()
@@ -112,16 +117,23 @@ class DirectoryRequestHandler(TurmsRequestHandler):
         # Write list of available files for download as json object
         files = sfh.fetch_server_content()
         self.write(files)
-        pass
 
         self.flush()
         self.finish()
 
-    def post(self):
-        self.not_found()
-
 
 class FileRequestHandler(TurmsRequestHandler):
+
+    __encryptor = None
+
+    def __init__(self, application, request):
+        super().__init__(application, request)
+
+        pw = cfg.get_server_val("Password", "")
+
+        self.__encryptor = encrypt.Encryptor(pw)
+
+
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """
         self.ok()
@@ -129,6 +141,7 @@ class FileRequestHandler(TurmsRequestHandler):
     def get(self):
         """ Create response for 'GET' method request in path '/download/*.*' """
         try:
+
             # File name should be the last part of the url.
             filename = self.request.path.split("/")[-1]
 

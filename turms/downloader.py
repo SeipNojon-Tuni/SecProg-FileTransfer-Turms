@@ -61,7 +61,7 @@ class Downloader():
             return
         else:
             # Open file with append mode
-            with open(self.__path, "ab") as f:      # Should close file automatically in case of error.
+            with open(self.__path, "wb") as f:      # Should close file automatically in case of error.
                 f.write(chunk)
                 f.close()
 

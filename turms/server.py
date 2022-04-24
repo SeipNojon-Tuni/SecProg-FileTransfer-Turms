@@ -7,6 +7,7 @@ import sys
 
 import request_handler as rh
 import logger
+from config import Config as cfg
 
 import tornado.ioloop
 import tornado.web
@@ -40,7 +41,7 @@ class TurmsApp(tornado.web.Application):
     __cfg = None
 
 
-    def __init__(self, cfg, port=DEFAULT_PORT, host=DEFAULT_HOST):
+    def __init__(self, port=DEFAULT_PORT, host=DEFAULT_HOST):
         """
         Tornado web application initialized for delegating request handling through HTTPServer class
 
@@ -50,20 +51,18 @@ class TurmsApp(tornado.web.Application):
 
         https://www.tornadoweb.org/en/stable/web.html#application-configuration
 
-        :param cfg:  Python ConfigParser configuration
         :param port: Port to listen to when service is run
         :param host: Host name of server, define loopback options
         """
-        self.__cfg = cfg
 
         # Prioritize initial values if available as: user supplied > config > default
         if port is DEFAULT_PORT:
-            self.__port = int(cfg["SERVER"].get("Port", DEFAULT_PORT))
+            self.__port = int(cfg.get_server_val("Port", DEFAULT_PORT))
         else:
             self.__port = port
 
         if host is DEFAULT_HOST:
-            self.__host = cfg["SERVER"].get("Host", DEFAULT_HOST)
+            self.__host = cfg.get_server_val("Host", DEFAULT_HOST)
         else:
             self.__host = host
 
@@ -112,15 +111,16 @@ class TurmsApp(tornado.web.Application):
         logger.info("Server stopped.")
         return
 
+    def get_cfg(self):
+        return self.__cfg
 
-def create_server(cfg, port, ip):
+def create_server(port, ip):
     """ Initialize server class object with given host address
 
-    :param cfg:  Python ConfigParser configuration
     :param port: Port to listen to when service is run
     :param host: Host name of server, define loopback options
     """
-    return TurmsApp(cfg, port, ip)
+    return TurmsApp(port, ip)
 
 
 def start_server(loop, app):

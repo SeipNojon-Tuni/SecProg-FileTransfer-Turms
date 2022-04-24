@@ -26,9 +26,8 @@ class Controller:
     __server = None
     __server_handle = None
     __server_loop = None
-    __config = None
 
-    def __init__(self, widgets, window, view, cfg):
+    def __init__(self, widgets, window, view):
         """:type Controller: Turms Application controller class
         that loosely follows controller functionality of MVC-pattern
 
@@ -41,7 +40,6 @@ class Controller:
         self.__widgets = widgets          # TODO: Weakref to avoid cyclic reference
         self.__window = window
         self.__view = view
-        self.__config = cfg
         self.__conn_handler = connection_handler.ConnectionHandler()
         return
 
@@ -137,7 +135,7 @@ class Controller:
             self.__server_handle.join(10)
 
         if not self.__server:
-            self.__server = server.create_server(self.__config, server.DEFAULT_PORT, ip)
+            self.__server = server.create_server(server.DEFAULT_PORT, ip)
             self.__server_loop = asyncio.new_event_loop()
 
         self.__server_handle = server.start_server_thread(self.__server_loop, self.__server)

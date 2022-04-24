@@ -21,7 +21,7 @@ def run():
 
     # Create application window and run application
     app = application.App()
-    app.run()
+    application.call_async(app.run())
     return
 
 

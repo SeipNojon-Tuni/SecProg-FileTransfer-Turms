@@ -27,7 +27,7 @@ class Encryptor:
         # Create encryption key based on user input password.
         # Based on cryptography module documentation and example.
         # https://cryptography.io/en/latest/fernet/#using-passwords-with-fernet
-        bpass = b"%s" % password
+        bpass = bytes(password, "utf-8")
 
         self.__salt = os.urandom(16)            # According to python documentation unpredictable
                                                 # enough to be suitable for cryptography.
@@ -38,7 +38,7 @@ class Encryptor:
             salt=self.__salt,
             iterations=390000
         )
-        key = base64.urlsafe_b64encode(kdf.derive(password))
+        key = kdf.derive(bpass)
 
         # Initialize AES cipher with generated key and iv.
         # https://cryptography.io/en/latestl/hazmat/primitives/symmetric-encryption/
