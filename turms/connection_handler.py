@@ -110,15 +110,10 @@ class ConnectionHandler:
             request = tornado.httpclient.HTTPRequest(url, "GET")
             response = await self.__session.fetch(request)
 
-            # REMOVE THIS
-            print(response.headers)
-
             try:
                 self.__cookies = response.headers["Set-Cookie"]
             except KeyError:
                 self.__cookies = None
-
-            print(self.__cookies)
 
             return response
         return

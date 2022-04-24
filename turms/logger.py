@@ -88,7 +88,7 @@ def set_log_level(level):
 # Shortcuts for different levels of logging
 # with 'getLogger(name).method(msg)'
 def log(lvl, msg, name="turms.logger"):
-    logging.getLogger(name).log(level=lvl, msg=msg)
+    logging.getLogger(name).log(level=lvl, msg="%s" % msg)
 
 
 def info(msg, name="turms.logger"):
@@ -101,5 +101,8 @@ def warning(msg, name="turms.logger"):
 
 def error(msg, name="turms.logger"):
     logging.getLogger(name).error("%s" % msg)
+
+
+
 
 

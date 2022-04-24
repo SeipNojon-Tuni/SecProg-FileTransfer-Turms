@@ -76,8 +76,6 @@ class App:
         self.__run = True
         await self.async_mainloop()
 
-        #self.__window.mainloop()
-
     def create_window(self):
         """ Create tkinter window to serve as
         GUI for the application and setup

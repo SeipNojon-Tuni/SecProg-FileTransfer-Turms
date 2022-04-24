@@ -59,9 +59,8 @@ class ConsoleWriter:
                 if self.__target:
                     self.__target.insert_text(text)
 
-                await asyncio.sleep(0.02)
             except Empty:
-                await asyncio.sleep(1)              # Return other tasks when queue is empty
+                await asyncio.sleep(0.2)              # Return other tasks when queue is empty
 
 
     def queue(self):

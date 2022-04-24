@@ -36,6 +36,13 @@ class TurmsRequestHandler(web.RequestHandler):
     def set_default_headers(self):
         pass
 
+
+    def prepare(self):
+        """ Log request before processing """
+        logger.warning("User requested path '%s' with %s, from %s." % (self.request.path,
+                                                                  self.request.method,
+                                                                  self.request.remote_ip) , "tornado.access")
+
     # Unsupported methods
     def post(self):
         """ Default response for method 'POST' - not allowed """
@@ -95,6 +102,7 @@ class IndexRequestHandler(TurmsRequestHandler):
 
     def get(self):
         """ Create response for 'GET' method request for path '/' """
+
         self.set_cookie("_xsrf", self.xsrf_token)           # Add generated xsrf-token to response for
                                                             # use later. (Unnecessary since no other than
                                                             # GET and HEAD methods are allowed.)
