@@ -10,6 +10,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
 
 
 class Encryptor:
@@ -29,9 +30,10 @@ class Encryptor:
         # https://cryptography.io/en/latest/fernet/#using-passwords-with-fernet
         bpass = bytes(password, "utf-8")
 
-        self.__salt = os.urandom(16)            # According to python documentation unpredictable
-                                                # enough to be suitable for cryptography.
-                                                # https://docs.python.org/3/library/os.html
+        # According to python documentation unpredictable
+        # enough to be suitable for cryptography.
+        # https://docs.python.org/3/library/os.html
+        self.__salt = os.urandom(16)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -43,14 +45,17 @@ class Encryptor:
         # Initialize AES cipher with generated key and iv.
         # https://cryptography.io/en/latestl/hazmat/primitives/symmetric-encryption/
 
-        self.__iv = os.urandom(16)                                      # Like salt, use os.urandom for
-                                                                        # initialization vector since it
-                                                                        # is cryptosafe.
+        # Like salt, use os.urandom for
+        # initialization vector since it
+        # is cryptosafe.
+        self.__iv = os.urandom(16)
 
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__encryptor = cipher.encryptor()
-        self.__decryptor = cipher.decryptor()                           # Encryptor can be allowed to
-                                                                        # decrypt what it has generated.
+
+        # Encryptor can be allowed to
+        # decrypt what it has generated.
+        self.__decryptor = cipher.decryptor()
 
         return
 
@@ -59,7 +64,6 @@ class Encryptor:
 
         token = self.__encryptor.update(content) + self.__encryptor.finalize()
         return token
-
 
     def decrypt(self, content):
         """ Decrypt given content and return decrypted """
@@ -74,6 +78,18 @@ class Encryptor:
         """ Get initialization vector """
         return self.__iv
 
+    def pad(self, data, size):
+        """ Pad data to predetermined size.
+
+        :param data:    Data to be padded.
+        :param size:    Size of the block after padding.
+        """
+
+        # Based on padding module documentation tutorial.
+        # https://cryptography.io/en/latest/hazmat/primitives/padding/
+        padder = padding.PKCS7(size).padder()
+        padded_data = padder.update(data) + padder.finalize()
+        return padded_data
 
 class Decryptor:
 
@@ -91,9 +107,11 @@ class Decryptor:
         # https://cryptography.io/en/latest/fernet/#using-passwords-with-fernet
         bpass = b"%s" % password
 
-        __salt = salt                       # According to python documentation unpredictable
-                                            # enough to be suitable for cryptography.
-                                            # https://docs.python.org/3/library/os.html
+        # According to python documentation unpredictable
+        # enough to be suitable for cryptography.
+        # https://docs.python.org/3/library/os.html
+        __salt = salt
+
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -105,15 +123,29 @@ class Decryptor:
         # Initialize AES cipher with generated key and iv.
         # https://cryptography.io/en/latestl/hazmat/primitives/symmetric-encryption/
 
-        self.__iv = os.urandom(16)                                      # Like salt, use os.urandom for
-                                                                        # initialization vector since it
-                                                                        # is cryptosafe.
+        # Like salt, use os.urandom for
+        # initialization vector since it
+        # is cryptosafe.
+        self.__iv = os.urandom(16)
+
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__decryptor = cipher.decryptor()
-
         return
 
     def decrypt(self, content):
         """ Decrypt given content and return decrypted """
         raw = self.__decryptor.update(content) + self.__decryptor.finalize()
         return raw
+
+    def unpad(self, pad_data, size):
+        """ Unpad data to from predetermined size.
+
+        :param pad_data:   Padded data
+        :param size:       Size of the padded block.
+        """
+
+        # Based on padding module documentation tutorial.
+        # https://cryptography.io/en/latest/hazmat/primitives/padding/
+        unpadder = padding.PKCS7(size).unpadder()
+        padded_data = unpadder.update(pad_data) + unpadder.finalize()
+        return padded_data

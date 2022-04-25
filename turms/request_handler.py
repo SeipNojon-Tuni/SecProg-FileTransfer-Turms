@@ -11,12 +11,13 @@ import tornado.httputil as tutil
 from pathvalidate import validate_filename, sanitize_filename
 import json
 
+
 import encrypt
 import logger
 import server_file_handler as sfh
 from config import Config as cfg
 
-CHUNK_SIZE = 2048
+CHUNK_SIZE = 1024
 
 class TurmsRequestHandler(web.RequestHandler):
     """
@@ -36,12 +37,11 @@ class TurmsRequestHandler(web.RequestHandler):
     def set_default_headers(self):
         pass
 
-
     def prepare(self):
         """ Log request before processing """
         logger.warning("User requested path '%s' with %s, from %s." % (self.request.path,
-                                                                  self.request.method,
-                                                                  self.request.remote_ip) , "tornado.access")
+                                                                       self.request.method,
+                                                                       self.request.remote_ip), "tornado.access")
 
     # Unsupported methods
     def post(self):
@@ -63,7 +63,6 @@ class TurmsRequestHandler(web.RequestHandler):
     def patch(self):
         """ Default response for method 'PATCH' - not allowed """
         self.forbidden()
-
 
     def bad_request(self):
         """ Construct basic response with status '400 Bad request' """
@@ -103,9 +102,11 @@ class IndexRequestHandler(TurmsRequestHandler):
     def get(self):
         """ Create response for 'GET' method request for path '/' """
 
-        self.set_cookie("_xsrf", self.xsrf_token)           # Add generated xsrf-token to response for
-                                                            # use later. (Unnecessary since no other than
-                                                            # GET and HEAD methods are allowed.)
+        # Add generated xsrf-token to response for
+        # use later. (Unnecessary since no other than
+        # GET and HEAD methods are allowed.)
+        self.set_cookie("_xsrf", self.xsrf_token)
+
         self.ok()
         self.write("The index.")
         self.flush()
@@ -135,12 +136,15 @@ class FileRequestHandler(TurmsRequestHandler):
     __encryptor = None
 
     def __init__(self, application, request):
+        """ Handler for """
+
         super().__init__(application, request)
 
-        pw = cfg.get_server_val("Password", "")
+        # Create encryptor for this user request.
+        if cfg.get_server_val("Password", "") == "":
+            logger.warning("No encryption password is set for server!")
 
-        self.__encryptor = encrypt.Encryptor(pw)
-
+        self.__encryptor = encrypt.Encryptor(cfg.get_server_val("Password", ""))
 
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """
@@ -152,8 +156,6 @@ class FileRequestHandler(TurmsRequestHandler):
 
             # File name should be the last part of the url.
             filename = self.request.path.split("/")[-1]
-
-            # logger.info_server("User %s requested %s " % (self.request.host_name, filename))
 
             # ServerFileHandler does sanitation and filename validation internally.
             # Raises pathvalidate.ValidationError if validation fails.
@@ -179,12 +181,16 @@ class FileRequestHandler(TurmsRequestHandler):
 
                     # Less than one chunk
                     else:
-                        chunk = file.read(size-read)
+                        chunk = file.read(size - read)
+
+                        # Pad undersized chunk for AES encryption.
+                        chunk = self.__encryptor.pad(chunk, CHUNK_SIZE)
                         read += len(chunk)
                     try:
-                        # Each chunk will be sent to client on flush
+                        # Each chunk will be sent to client on flush.
+                        encrypted = self.__encryptor.encrypt(chunk)
                         self.ok()
-                        self.write(chunk)
+                        self.write(encrypted)
                         self.flush()
                     except iostream.StreamClosedError:
                         break

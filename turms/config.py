@@ -6,7 +6,7 @@
 import configparser
 
 
-class Config():
+class Config:
     """ Static Configuration class for reading
     user configs from file.
     """
@@ -15,7 +15,6 @@ class Config():
                                  "Port": "16569",
                                  "Password": ""
                                  }}
-
     @staticmethod
     def get_config():
         """ Create ConfigParser object with
