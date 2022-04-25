@@ -7,7 +7,7 @@ import socket
 import sys
 from ipaddress import ip_address
 
-import logger
+from logger import TurmsLogger as Logger
 
 import tornado.simple_httpclient
 import tornado.httpclient
@@ -34,14 +34,14 @@ class ConnectionHandler:
 
         # Allow connection only when no former connection is active.
         if self.__session or self.__server_url:
-            logger.info("Already connected to a server. Please terminate connection first.")
+            Logger.info("Already connected to a server. Please terminate connection first.")
             return
 
         try:
             ip = ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
             portint = int(port)
         except ValueError:
-            logger.warning("Invalid ip-address or port given.")
+            Logger.warning("Invalid ip-address or port given.")
             self.disconnect_from_server(controller)
             return False
 
@@ -51,20 +51,20 @@ class ConnectionHandler:
             self.__server_url = url
             self.__session = tornado.httpclient.AsyncHTTPClient()
 
-            logger.info("Connecting to " + url)
+            Logger.info("Connecting to " + url)
 
             await self.initial_request()
 
             return await self.fetch_server_content(controller)
 
         except tornado.simple_httpclient.HTTPTimeoutError:
-            logger.error("Connection timed out.")
+            Logger.error("Connection timed out.")
             self.disconnect_from_server(controller)
             return False
 
         # Could not establish connection
         except ConnectionError:
-            logger.warning("Failed to establish connection.")
+            Logger.warning("Failed to establish connection.")
             self.disconnect_from_server(controller)
             return False
 
@@ -127,10 +127,10 @@ class ConnectionHandler:
             response = await self.get_request("/dir/")
 
             if not response:
-                logger.error("Could not parse response.")
+                Logger.error("Could not parse response.")
                 return False
 
-            logger.info("Response: %s %s " % ( str(response.code), response.reason) )
+            Logger.info("Response: %s %s " % ( str(response.code), response.reason) )
 
             filenames = json.loads(response.body)
 
@@ -144,7 +144,7 @@ class ConnectionHandler:
                     validate_filename(sname)
                     san_names.append(sname)
                 except:
-                    logger.warning("Ignoring invalid filename %s with index %i in response."
+                    Logger.warning("Ignoring invalid filename %s with index %i in response."
                                    % (sname, filenames.index(name)) )
 
             controller.update_filetree(san_names)
@@ -152,12 +152,12 @@ class ConnectionHandler:
 
         except tornado.httpclient.HTTPClientError:
             type, value, traceback = sys.exc_info()
-            logger.warning("%s" % value)
+            Logger.warning("%s" % value)
             return False
 
         except OSError:
             type, value, trace = sys.exc_info()
-            logger.error(value)
+            Logger.error(value)
             return False
 
     async def fetch_file_from_server(self, filename, downloader):
@@ -167,16 +167,16 @@ class ConnectionHandler:
             response = await self.get_request(dl_url)
 
             if not response:
-                logger.error("Could not parse response.")
+                Logger.error("Could not parse response.")
                 return
 
-            logger.info("Response: %s %s " % (str(response.code), response.reason))
+            Logger.info("Response: %s %s " % (str(response.code), response.reason))
 
             downloader.write_to_file(response.body)
 
         except tornado.httpclient.HTTPClientError:
-            type, value, traceback = sys.exc_info()
-            logger.warning("%s" % value)
+            t, value, traceback = sys.exc_info()
+            Logger.warning("%s" % value)
             return False
 
 

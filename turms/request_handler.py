@@ -13,11 +13,14 @@ import json
 
 
 import encrypt
-import logger
-import server_file_handler as sfh
+from logger import TurmsLogger as Logger
+from server_file_handler import ServerFileHandler as Sfh
 from config import Config as cfg
 
 CHUNK_SIZE = 1024
+
+
+
 
 class TurmsRequestHandler(web.RequestHandler):
     """
@@ -32,14 +35,13 @@ class TurmsRequestHandler(web.RequestHandler):
     # so prevent any unauthorized modification of server
     # content by not accepting any other methods.
     SUPPORTED_METHODS = ("GET", "HEAD")
-    __logger = "turms.req_handler"
 
     def set_default_headers(self):
         pass
 
     def prepare(self):
         """ Log request before processing """
-        logger.warning("User requested path '%s' with %s, from %s." % (self.request.path,
+        Logger.warning("User requested path '%s' with %s, from %s." % (self.request.path,
                                                                        self.request.method,
                                                                        self.request.remote_ip), "tornado.access")
 
@@ -86,13 +88,17 @@ class TurmsRequestHandler(web.RequestHandler):
         """ Construct basic response with status '200 OK' """
         self.set_status(200, tutil.responses[200])
 
+    def internal_server_error(self):
+        self.set_status(500, tutil.responses[500])
+        self.flush()
+        self.finish()
+
+
 # ---------------------------------------------------
 # Path specific request handlers for different request paths
 # eg.   --> IndexRequestHandler for "/"
 #       --> DirectoryRequestHandler for "/dir/"
 #       --> FileRequestHandler for "/download/*"
-
-
 class IndexRequestHandler(TurmsRequestHandler):
 
     def head(self):
@@ -124,7 +130,7 @@ class DirectoryRequestHandler(TurmsRequestHandler):
 
         self.set_status(200)
         # Write list of available files for download as json object
-        files = sfh.fetch_server_content()
+        files = Sfh.fetch_server_content()
         self.write(files)
 
         self.flush()
@@ -134,17 +140,22 @@ class DirectoryRequestHandler(TurmsRequestHandler):
 class FileRequestHandler(TurmsRequestHandler):
 
     __encryptor = None
+    __allow_unencrypted = False
 
-    def __init__(self, application, request):
-        """ Handler for """
+    def prepare(self):
+        """ Prepare before handling request. Create encryption device where necessary. """
+        self.__allow_unencrypted = cfg.get_server_val("AllowUnencrypted", "False")
 
-        super().__init__(application, request)
-
-        # Create encryptor for this user request.
-        if cfg.get_server_val("Password", "") == "":
-            logger.warning("No encryption password is set for server!")
-
-        self.__encryptor = encrypt.Encryptor(cfg.get_server_val("Password", ""))
+        # If not allowing unencrypted transfers and no password is defined raise ValueError.
+        # In case unencrypted data is allowed don't create encryptor object.
+        if not self.__allow_unencrypted and cfg.get_server_val("Password", "") != "":
+            # Create encryptor for this user request.
+            self.__encryptor = encrypt.Encryptor(cfg.get_server_val("Password", ""))
+        else:
+            # raise ValueError("Password must be defined when unencrypted file transfer is not allowed.")
+            self.internal_server_error()
+            Logger.error("Password must be defined when unencrypted file transfer is not allowed.", "tornado.access")
+            return
 
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """
@@ -153,13 +164,12 @@ class FileRequestHandler(TurmsRequestHandler):
     def get(self):
         """ Create response for 'GET' method request in path '/download/*.*' """
         try:
-
             # File name should be the last part of the url.
             filename = self.request.path.split("/")[-1]
 
             # ServerFileHandler does sanitation and filename validation internally.
             # Raises pathvalidate.ValidationError if validation fails.
-            file = sfh.get_file_object(filename)
+            file = Sfh.get_file_object(filename)
 
             # User requested file is not available on server
             if file is None:
@@ -188,9 +198,12 @@ class FileRequestHandler(TurmsRequestHandler):
                         read += len(chunk)
                     try:
                         # Each chunk will be sent to client on flush.
-                        encrypted = self.__encryptor.encrypt(chunk)
+                        if self.__allow_unencrypted:
+                            final = chunk
+                        else:
+                            final = self.__encryptor.encrypt(chunk)
                         self.ok()
-                        self.write(encrypted)
+                        self.write(final)
                         self.flush()
                     except iostream.StreamClosedError:
                         break

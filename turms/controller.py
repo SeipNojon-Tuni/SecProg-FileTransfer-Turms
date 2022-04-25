@@ -12,7 +12,7 @@ import tornado.ioloop
 import downloader
 import server
 import connection_handler
-import logger
+from logger import TurmsLogger as Logger
 import asyncio
 from pathvalidate import validate_filename, sanitize_filename
 import sys
@@ -93,7 +93,7 @@ class Controller:
             if location == "":
                 return
 
-            logger.info("Requesting file %s. " % san_name)
+            Logger.info("Requesting file %s. " % san_name)
 
             # Downloader class sanitizes and validates download destination internally.
             #   Raises pathvalidate.ValidationError if validation is not successful.
@@ -102,7 +102,7 @@ class Controller:
             await self.__conn_handler.fetch_file_from_server(san_name, download)
         # User clicked on non-existent item in tree.
         except IndexError:
-            logger.warning("Unknown item.")
+            Logger.warning("Unknown item.")
             return
 
         # except pathvalidate.ValidationError:

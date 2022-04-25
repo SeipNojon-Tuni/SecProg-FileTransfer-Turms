@@ -4,14 +4,15 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-import logger as log
+from logger import TurmsLogger as Logger
 from pathvalidate import sanitize_filepath, validate_filepath, Platform
 
 # TODO: Whether or not to lock the file between writing chunks
 
 DEFAULT_DL_DIRECTORY = "./downloads"
 
-class Downloader():
+
+class Downloader:
     __path = None
 
     def __init__(self, path):
@@ -31,7 +32,6 @@ class Downloader():
         # underscore to filename if it is a system reserved name.
         san_location = sanitize_filepath(path, "", "auto")
 
-
         # Validate filepath to determine if sanitation was successful
         # and path is a valid filepath.
 
@@ -46,7 +46,6 @@ class Downloader():
         self.__path = san_location
         return
 
-
     def write_to_file(self, chunk):
         """
         Write parameter chunk to file.
@@ -57,7 +56,7 @@ class Downloader():
         # If no path is specified beforehand with assign file
         # refrain from downloading to prevent overwriting other files.
         if not self.__path:
-            log.warning("No filepath specified for download.")
+            Logger.warning("No filepath specified for download.")
             return
         else:
             # Open file with append mode

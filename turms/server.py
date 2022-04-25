@@ -6,7 +6,7 @@
 import sys
 
 import request_handler as rh
-import logger
+from logger import TurmsLogger as Logger
 from config import Config as cfg
 
 import tornado.ioloop
@@ -39,7 +39,7 @@ class TurmsApp(tornado.web.Application):
     __host = DEFAULT_HOST
     __port = DEFAULT_PORT
     __cfg = None
-
+    __httpserver = None
 
     def __init__(self, port=DEFAULT_PORT, host=DEFAULT_HOST):
         """
@@ -94,12 +94,11 @@ class TurmsApp(tornado.web.Application):
         :param loop Target event loop to use for executing
                     asynchronous server loop in.
         """
-        logger.info("Starting server in port " + str(self.__port))
+        Logger.info("Starting server in port " + str(self.__port))
 
         asyncio.set_event_loop(loop)
         self.__httpserver = self.listen(self.__port, str(self.__host))
         loop.run_forever()
-
 
     def stop(self, *args):
         """ Stop accepting new connections and await for all current
@@ -108,19 +107,20 @@ class TurmsApp(tornado.web.Application):
         if self.__httpserver:
             self.__httpserver.stop()
             asyncio.get_event_loop().create_task(self.__httpserver.close_all_connections())
-        logger.info("Server stopped.")
+        Logger.info("Server stopped.")
         return
 
     def get_cfg(self):
         return self.__cfg
 
-def create_server(port, ip):
+
+def create_server(port, host):
     """ Initialize server class object with given host address
 
     :param port: Port to listen to when service is run
     :param host: Host name of server, define loopback options
     """
-    return TurmsApp(port, ip)
+    return TurmsApp(port, host)
 
 
 def start_server(loop, app):
@@ -139,7 +139,7 @@ def stop_server(loop, app):
     :param loop  Currently running asyncio.event_loop of target thread
     :param app   TurmsApp server handling application object
     """
-    logger.info("Server stopping...")
+    Logger.info("Server stopping...")
     asyncio.get_event_loop().call_soon_threadsafe(app.stop, loop)
     loop.stop()
     return

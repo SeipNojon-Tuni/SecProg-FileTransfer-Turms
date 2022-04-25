@@ -11,7 +11,7 @@ import asyncio
 import config
 import console_widget
 import controller as ctrl
-import logger
+from logger import TurmsLogger as Logger
 import server
 import view
 
@@ -68,10 +68,10 @@ class App:
 
         call_async(self.__view.start_listener())
 
-        logger.create_logger()
-        logger.info("--- Application initialization finished. ---")
+        Logger.create_logger()
+        Logger.info("--- Application initialization finished. ---")
 
-        logger.set_log_level(logging.DEBUG)
+        Logger.set_log_level(logging.DEBUG)
 
         self.__run = True
         await self.async_mainloop()
