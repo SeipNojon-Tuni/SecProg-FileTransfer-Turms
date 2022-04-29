@@ -33,9 +33,6 @@ DEFAULT_HOST = "127.0.0.1"
 #
 class TurmsApp(tornado.web.Application):
 
-    # TODO: Check StaticFileHandler implementation and
-    # TODO: Host name pattern against DNS rebound attack
-
     __host = DEFAULT_HOST
     __port = DEFAULT_PORT
     __cfg = None
@@ -66,20 +63,18 @@ class TurmsApp(tornado.web.Application):
         else:
             self.__host = host
 
-        handlers =  [ ( r"/", rh.IndexRequestHandler ),
-                      ( r"/dir/", rh.DirectoryRequestHandler ),
-                      ( r"/download/*.*", rh.FileRequestHandler )]
-            # [
-            #         (HostMatches(host),
-            #             [ ( r"/", rh.IndexRequestHandler),
-            #             (r"/dir/", rh.DirectoryRequestHandler)]
-            #          )
-            #         ]
+        # Match host name with defined one to protect against DNS rebinding attacks.
+        # This is the tornado.routing format version.
+        # https://www.tornadoweb.org/en/stable/guide/security.html#dns-rebinding
+        handlers = [(HostMatches(host), [(r"/", rh.IndexRequestHandler)]),
+                    (HostMatches(host), [(r"/dir/", rh.DirectoryRequestHandler)]),
+                    (HostMatches(host), [(r"/download/*.*", rh.FileRequestHandler)])]
+
         settings = {
             "xsrf_cookies": True                        # Prevent Cross site request forgery,
                                                         # Tornado web comes with built-in support
                                                         # for using XSRF-token.
-                                                        # Technically this is unecessary since application
+                                                        # Technically this is unnecessary since application
                                                         # handlers only allow "HEAD" and "GET" methods
                                                         # So no server modification should be possible.
 
@@ -96,9 +91,9 @@ class TurmsApp(tornado.web.Application):
         """
         Logger.info("Starting server in port " + str(self.__port))
 
-        asyncio.set_event_loop(loop)
+        # asyncio.set_event_loop(loop)
         self.__httpserver = self.listen(self.__port, str(self.__host))
-        loop.run_forever()
+        # loop.run_forever()
 
     def stop(self, *args):
         """ Stop accepting new connections and await for all current
@@ -145,6 +140,7 @@ def stop_server(loop, app):
     return
 
 
+# --- TODO: Redundant, Moving server to asynchronous execution. ---
 def start_server_thread(loop, app):
     """ Start TurmsApp application to run server in separate daemon thread.
     Call for "App.run()" with given parameters to set up asynchronous tornado

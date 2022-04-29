@@ -10,8 +10,10 @@ import pathvalidate
 import tornado.ioloop
 
 import downloader
+import encrypt
 import server
 import connection_handler
+import view
 from logger import TurmsLogger as Logger
 import asyncio
 from pathvalidate import validate_filename, sanitize_filename
@@ -57,10 +59,8 @@ class Controller:
         ip = self.__widgets["ip"].get()
         port = self.__widgets["port"].get()
 
-        success = False
-
         if self.__conn_handler:
-            success = await self.__conn_handler.connect_to_server(ip, port, self)
+            await self.__conn_handler.connect_to_server(ip, port, self)
 
     async def disconnect_from_server(self, event):
         """ Delegate for ConnectionHandler instance to close connection to server if connected.
@@ -87,7 +87,7 @@ class Controller:
             # length limits and sanitation was successful.
             validate_filename(san_name)
 
-            location = self.__view.prompt_save_location(san_name)
+            location = view.View.prompt_save_location(san_name)
 
             # User cancelled action.
             if location == "":
@@ -99,7 +99,7 @@ class Controller:
             #   Raises pathvalidate.ValidationError if validation is not successful.
             download = downloader.Downloader(location)
 
-            await self.__conn_handler.fetch_file_from_server(san_name, download)
+            await self.__conn_handler.fetch_file_from_server(san_name, download, self)
         # User clicked on non-existent item in tree.
         except IndexError:
             Logger.warning("Unknown item.")
@@ -138,7 +138,8 @@ class Controller:
             self.__server = server.create_server(server.DEFAULT_PORT, ip)
             self.__server_loop = asyncio.new_event_loop()
 
-        self.__server_handle = server.start_server_thread(self.__server_loop, self.__server)
+        # self.__server_handle = server.start_server_thread(self.__server_loop, self.__server)
+        server.start_server(self.__server_loop, self.__server)
         return
 
     async def stop_server(self, event):
@@ -159,10 +160,6 @@ class Controller:
         if self.__server:
             server.stop_server(self.__server_loop, self.__server)
 
-    async def send_request(self, event):
-        """ Send request to server """
-        pass
-
     def state_to_connect(self):
         """ Delegate for View to change GUI state to being connected to server """
         self.__view.state_to_connect()
@@ -182,4 +179,8 @@ class Controller:
     def update_filetree(self, items):
         """ Delegate for View to printout details if given file list to GUI """
         self.__view.print_out_filetree(items)
+
+    @staticmethod
+    def prompt_password():
+        return view.View.prompt_password()
 

@@ -5,7 +5,6 @@
 
 import logging
 import sys
-from config import Config as cfg
 
 DEFAULT_LOG = "./logs/turms-latest.log"
 DEFAULT_SERVER_LOG = "./logs/turms-server.log"

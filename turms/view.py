@@ -10,11 +10,12 @@ import queue
 from queue import Empty
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import simpledialog
 
 import pathvalidate
 from pathvalidate import sanitize_filename, validate_filename
 
-import logger
+from logger import TurmsLogger as Logger
 from downloader import DEFAULT_DL_DIRECTORY
 
 class ConsoleQueue:
@@ -123,9 +124,10 @@ class View(object):
                 parsed = item
                 tree.insert("", tk.END, value=parsed)
             except pathvalidate.ValidationError:
-                logger.warning("Ignoring invalid filename in response.")
+                Logger.warning("Ignoring invalid filename in response.")
 
-    def prompt_save_location(self, filename):
+    @staticmethod
+    def prompt_save_location(filename):
 
         san_name = sanitize_filename(filename)
 
@@ -144,7 +146,9 @@ class View(object):
             splitname.pop(-1)
             name = "".join(splitname)
 
-
         return tk.filedialog.asksaveasfilename(defaultextension=extension, initialdir=DEFAULT_DL_DIRECTORY, initialfile=name)
 
+    @staticmethod
+    def prompt_password():
+        return simpledialog.askstring(title="Server", prompt="Please enter server password.")
 

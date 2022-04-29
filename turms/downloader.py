@@ -3,9 +3,11 @@
 #   bytestring to a file.
 #
 #   Sipi Ylä-Nojonen, 2022
-
+import encrypt
+import request_handler
 from logger import TurmsLogger as Logger
 from pathvalidate import sanitize_filepath, validate_filepath, Platform
+import io
 
 # TODO: Whether or not to lock the file between writing chunks
 
@@ -26,6 +28,7 @@ class Downloader:
         :param path:    Directory path to the file location.
         :return:
         """
+        # TODO: ADD deleting original file if present to overwrite it.
 
         # Sanitize user input file path by replacing
         # unprintable characters with "". Also adds additional
@@ -54,14 +57,71 @@ class Downloader:
         :return:
         """
         # If no path is specified beforehand with assign file
-        # refrain from downloading to prevent overwriting other files.
+        # refrain from downloading.
         if not self.__path:
             Logger.warning("No filepath specified for download.")
             return
         else:
-            # Open file with append mode
-            with open(self.__path, "wb") as f:      # Should close file automatically in case of error.
+            # Should close file automatically in case of error.
+            with open(self.__path, "ab") as f:
                 f.write(chunk)
                 f.close()
+
+    def decrypt_and_write(self, data, password, salt, iv):
+        """ Create decryptor and decrypt file content, then save it to file.
+
+        :param data:       Data to write to file.
+        :param password:    User supplied password.
+        :param salt:        Salt used for encryption.
+        :param iv:          Initialization vector for decryption.
+        """
+        decryptor = encrypt.Decryptor(password, salt, iv)
+
+        # TODO: REMOVE
+        print(data)
+        size = len(data)
+        written = 0
+        f = io.BytesIO(data)
+        chunk = None
+
+        while size - written > 0:
+            # While size greater than one chunk size remains to be
+            if size - written > request_handler.CHUNK_SIZE:
+                chunk = f.read(request_handler.CHUNK_SIZE)
+                chunk = decryptor.decrypt(chunk)
+                written += request_handler.CHUNK_SIZE
+
+            # Less than one chunk
+            else:
+                chunk = f.read(size - written)
+                chunk = decryptor.decrypt(chunk)
+
+                # Pad undersized chunk for AES encryption.
+                # chunk = decryptor.unpad(chunk, size - written)
+                written += len(chunk)
+
+        # TODO: REMOVE
+        print(chunk)
+        self.write_to_file(chunk)
+        return
+
+    def compare_checksum(self, checksum):
+        """ Compares given checksum to file in path defined for this instance
+        to determine if sums match.
+
+        :param checksum:    Checksum to compare to path.
+        :return:            Whether checksums match.
+        """
+        # If no path is specified there shouldn't be anything
+        # to compare to.
+        if not self.__path:
+            Logger.warning("No filepath specified for download.")
+            return False
+        else:
+            # Should close file automatically in case of error.
+            with open(self.__path, "rb") as f:
+                ref_sum = encrypt.get_checksum(f)
+                return checksum == ref_sum
+
 
 

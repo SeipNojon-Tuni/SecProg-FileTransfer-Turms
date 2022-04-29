@@ -10,7 +10,6 @@ from os import listdir
 from os.path import isfile, join
 import json
 from pathvalidate import sanitize_filename, validate_filename
-from cryptography.hazmat.primitives import hashes
 
 from logger import TurmsLogger as Logger
 
@@ -53,13 +52,4 @@ class ServerFileHandler:
             file = open(path, "rb")
             return file
 
-    @staticmethod
-    def get_checksum(file):
-        """ Get checksum for file to determine if it has been modified or corrupted. """
-        digest = hashes.Hash(hashes.SHA256())
-        cs = ""
-
-
-
-        return cs
 

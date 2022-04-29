@@ -4,6 +4,7 @@
 #   Sipi Ylä-Nojonen, 2022
 
 import configparser
+from logger import TurmsLogger as Logger
 
 CFG_FILE_NAME = "./config/config.cfg"
 
@@ -37,9 +38,14 @@ class Config:
         :param name:    Config field name.
         :param fallb:   Fallback value to use if configuration is not found.
         """
-
         cfg = Config.get_config()
         return cfg[sect].get(name, fallb)
+
+    @staticmethod
+    def get_bool(sect, name):
+        """ Evaluate config value as boolean. """
+        cfg = Config.get_config()
+        return cfg[sect].getboolean(name)
 
     @staticmethod
     def get_server_val(name, fallb):

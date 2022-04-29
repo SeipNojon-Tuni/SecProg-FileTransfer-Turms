@@ -9,8 +9,7 @@ import pathvalidate
 from tornado import web, iostream, gen
 import tornado.httputil as tutil
 from pathvalidate import validate_filename, sanitize_filename
-import json
-
+import base64
 
 import encrypt
 from logger import TurmsLogger as Logger
@@ -144,15 +143,19 @@ class FileRequestHandler(TurmsRequestHandler):
 
     def prepare(self):
         """ Prepare before handling request. Create encryption device where necessary. """
-        self.__allow_unencrypted = cfg.get_server_val("AllowUnencrypted", "False")
+        self.__allow_unencrypted = cfg.get_bool("SERVER", "AllowUnencrypted")
 
         # If not allowing unencrypted transfers and no password is defined raise ValueError.
         # In case unencrypted data is allowed don't create encryptor object.
-        if not self.__allow_unencrypted and cfg.get_server_val("Password", "") != "":
+
+        if self.__allow_unencrypted:
+            self.__encryptor = None
+            return
+        elif not self.__allow_unencrypted and cfg.get_server_val("Password", "") != "":
             # Create encryptor for this user request.
             self.__encryptor = encrypt.Encryptor(cfg.get_server_val("Password", ""))
+            return
         else:
-            # raise ValueError("Password must be defined when unencrypted file transfer is not allowed.")
             self.internal_server_error()
             Logger.error("Password must be defined when unencrypted file transfer is not allowed.", "tornado.access")
             return
@@ -181,6 +184,17 @@ class FileRequestHandler(TurmsRequestHandler):
                 size = file.tell()
                 file.seek(0, 0)
                 read = 0
+                checksum = encrypt.get_checksum(file.read())
+                file.seek(0, 0)
+
+                # Set encryption headers
+                if self.__allow_unencrypted and not self.__encryptor:
+                    self.add_header("encrypted", "False")
+                else:
+                    self.add_header("encrypted", "True")
+
+                    self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
+                    self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
 
                 # Data remains to be read
                 while size - read > 0:

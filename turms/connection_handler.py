@@ -6,7 +6,9 @@
 import socket
 import sys
 from ipaddress import ip_address
+import base64
 
+import encrypt
 from logger import TurmsLogger as Logger
 
 import tornado.simple_httpclient
@@ -19,6 +21,7 @@ class ConnectionHandler:
     __session = None
     __server_url = None
     __cookies = None
+    __decryptor = None
 
     def __init__(self):
         pass
@@ -78,8 +81,8 @@ class ConnectionHandler:
         if self.__session:
             self.__session.close()
             self.__session = None
-            self.__xsrf = None
 
+        self.__decryptor = None
         self.__server_url = None
 
         controller.update_filetree([])  # Empty filetree in GUI when not connected
@@ -160,7 +163,7 @@ class ConnectionHandler:
             Logger.error(value)
             return False
 
-    async def fetch_file_from_server(self, filename, downloader):
+    async def fetch_file_from_server(self, filename, downloader, controller):
         """ Request to download a file from server. """
         try:
             dl_url = "/download/%s" % filename
@@ -172,7 +175,20 @@ class ConnectionHandler:
 
             Logger.info("Response: %s %s " % (str(response.code), response.reason))
 
-            downloader.write_to_file(response.body)
+            # Decrypt server response if necessary and write content to file.
+            data = response.body
+            if response.headers["encrypted"] == "True":
+
+                # TODO: REMOVE THESE
+                print(base64.urlsafe_b64decode(response.headers["salt"]))
+                print(base64.urlsafe_b64decode(response.headers["iv"]))
+
+                downloader.decrypt_and_write(data,
+                                             controller.prompt_password(),
+                                             base64.urlsafe_b64decode(response.headers["salt"]),
+                                             base64.urlsafe_b64decode(response.headers["iv"]))
+            else:
+                downloader.write_to_file(data)
 
         except tornado.httpclient.HTTPClientError:
             t, value, traceback = sys.exc_info()
