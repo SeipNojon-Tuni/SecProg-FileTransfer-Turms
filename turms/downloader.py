@@ -3,11 +3,15 @@
 #   bytestring to a file.
 #
 #   Sipi Ylä-Nojonen, 2022
+import config
 import encrypt
 import request_handler
 from logger import TurmsLogger as Logger
-from pathvalidate import sanitize_filepath, validate_filepath, Platform
+from config import Config as cfg
+
+from pathvalidate import sanitize_filepath, validate_filepath
 import io
+from cryptography.hazmat.primitives import padding
 
 # TODO: Whether or not to lock the file between writing chunks
 
@@ -67,6 +71,8 @@ class Downloader:
                 f.write(chunk)
                 f.close()
 
+    # TODO: NEED TO CHANGE THIS TO CHUNKED MODE (No need to check size when single chunks)?
+
     def decrypt_and_write(self, data, password, salt, iv):
         """ Create decryptor and decrypt file content, then save it to file.
 
@@ -86,24 +92,32 @@ class Downloader:
 
         while size - written > 0:
             # While size greater than one chunk size remains to be
-            if size - written > request_handler.CHUNK_SIZE:
+            if size - written >= request_handler.CHUNK_SIZE:
                 chunk = f.read(request_handler.CHUNK_SIZE)
                 chunk = decryptor.decrypt(chunk)
-                written += request_handler.CHUNK_SIZE
+                written += len(chunk)
 
             # Less than one chunk
             else:
                 chunk = f.read(size - written)
+                # Save chunk size because it changes in
+                # unpadding process
+                rsize = len(chunk)
                 chunk = decryptor.decrypt(chunk)
+                chunk += decryptor.finalize()
 
-                # Pad undersized chunk for AES encryption.
-                # chunk = decryptor.unpad(chunk, size - written)
-                written += len(chunk)
+
+                # Unpad undersized chunk for AES encryption.
+                chk_size = int(cfg.get_server_val("ChunkSize", request_handler.CHUNK_SIZE))
+                unpad = padding.PKCS7(chk_size).unpadder()
+                chunk = unpad.update(chunk)
+                written += rsize
 
         # TODO: REMOVE
         print(chunk)
         self.write_to_file(chunk)
         return
+
 
     def compare_checksum(self, checksum):
         """ Compares given checksum to file in path defined for this instance

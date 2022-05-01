@@ -10,7 +10,6 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
 
 def get_checksum(file):
     """ Get checksum for file to determine if it has been modified or corrupted. """
@@ -25,7 +24,6 @@ class Encryptor:
     __salt = None
     __iv = None
     __encryptor = None
-    __decryptor = None
 
     def __init__(self, password):
         """ Class wrapper for encrypting data with python cryptography
@@ -59,22 +57,15 @@ class Encryptor:
 
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__encryptor = cipher.encryptor()
-
-        # Encryptor can be allowed to
-        # decrypt what it has generated.
-        self.__decryptor = cipher.decryptor()
         return
 
     def encrypt(self, content):
         """ Encrypt given content and return encrypted """
+        return self.__encryptor.update(content)
 
-        token = self.__encryptor.update(content) + self.__encryptor.finalize()
-        return token
-
-    def decrypt(self, content):
-        """ Decrypt given content and return decrypted """
-        raw = self.__decryptor.update(content) + self.__decryptor.finalize()
-        return raw
+    def finalize(self):
+        """ Finalize encryption """
+        return self.__encryptor.finalize()
 
     def get_salt(self):
         """ Return salt used for encryption key """
@@ -84,20 +75,9 @@ class Encryptor:
         """ Get initialization vector """
         return self.__iv
 
-    @staticmethod
-    def pad(data, size):
-        """ Pad data to predetermined size.
-
-        :param data:    Data to be padded.
-        :param size:    Size of the block after padding.
-        """
-
-        # Based on padding module documentation tutorial.
-        # https://cryptography.io/en/latest/hazmat/primitives/padding/
-        padder = padding.PKCS7(size).padder()
-        padded_data = padder.update(data) + padder.finalize()
-        return padded_data
-
+    def get_tag(self):
+        """ Get authentication tag """
+        return self.__encryptor.tag
 
 class Decryptor:
 
@@ -142,22 +122,11 @@ class Decryptor:
 
     def decrypt(self, content):
         """ Decrypt given content and return decrypted """
-        raw = self.__decryptor.update(content) + self.__decryptor.finalize()
-        return raw
+        return self.__decryptor.update(content)
 
-    @staticmethod
-    def unpad(pad_data, size):
-        """ Unpad data to from predetermined size.
-
-        :param pad_data:   Padded data
-        :param size:       Size of the padded block.
-        """
-
-        # Based on padding module documentation tutorial.
-        # https://cryptography.io/en/latest/hazmat/primitives/padding/
-        unpadder = padding.PKCS7(size).unpadder()
-        padded_data = unpadder.update(pad_data) + unpadder.finalize()
-        return padded_data
+    def finalize(self):
+        """ Finalize decryptor context """
+        return self.__decryptor.finalize()
 
 
 class KeyGen:

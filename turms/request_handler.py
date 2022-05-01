@@ -10,6 +10,8 @@ from tornado import web, iostream, gen
 import tornado.httputil as tutil
 from pathvalidate import validate_filename, sanitize_filename
 import base64
+from cryptography.hazmat.primitives import padding
+
 
 import encrypt
 from logger import TurmsLogger as Logger
@@ -17,8 +19,6 @@ from server_file_handler import ServerFileHandler as Sfh
 from config import Config as cfg
 
 CHUNK_SIZE = 1024
-
-
 
 
 class TurmsRequestHandler(web.RequestHandler):
@@ -172,7 +172,7 @@ class FileRequestHandler(TurmsRequestHandler):
 
             # ServerFileHandler does sanitation and filename validation internally.
             # Raises pathvalidate.ValidationError if validation fails.
-            file = Sfh.get_file_object(filename)
+            file, size = Sfh.get_file_object(filename)
 
             # User requested file is not available on server
             if file is None:
@@ -180,9 +180,6 @@ class FileRequestHandler(TurmsRequestHandler):
                 return
             else:
                 # Read from file to response body in chunks until completed.
-                file.seek(0, 2)
-                size = file.tell()
-                file.seek(0, 0)
                 read = 0
                 checksum = encrypt.get_checksum(file.read())
                 file.seek(0, 0)
@@ -193,29 +190,42 @@ class FileRequestHandler(TurmsRequestHandler):
                 else:
                     self.add_header("encrypted", "True")
 
-                    self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
-                    self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
+                self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
+                self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
+                self.add_header("checksum", base64.urlsafe_b64encode(checksum))
 
                 # Data remains to be read
                 while size - read > 0:
                     # While size greater than one chunk size remains to be
                     if size - read > CHUNK_SIZE:
                         chunk = file.read(CHUNK_SIZE)
-                        read += CHUNK_SIZE
+                        read += len(chunk)
 
                     # Less than one chunk
                     else:
                         chunk = file.read(size - read)
 
+                        # Save chunk size because it changes in
+                        # padding process
+                        rsize = len(chunk)
+
                         # Pad undersized chunk for AES encryption.
-                        chunk = self.__encryptor.pad(chunk, CHUNK_SIZE)
-                        read += len(chunk)
+                        # Based on padding module documentation tutorial.
+                        # https://cryptography.io/en/latest/hazmat/primitives/padding/
+                        chk_size = int(cfg.get_server_val("ChunkSize", CHUNK_SIZE))
+                        pad = padding.PKCS7(chk_size).padder()
+                        chunk = pad.update(chunk) + pad.finalize()
+                        read += rsize
                     try:
+                        Logger.info("%s" % str(size-read))
                         # Each chunk will be sent to client on flush.
                         if self.__allow_unencrypted:
                             final = chunk
                         else:
                             final = self.__encryptor.encrypt(chunk)
+                            if size == read:
+                                print("FINALIZED")
+                                final += self.__encryptor.finalize()
                         self.ok()
                         self.write(final)
                         self.flush()

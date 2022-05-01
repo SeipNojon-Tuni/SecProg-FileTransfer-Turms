@@ -165,6 +165,10 @@ class ConnectionHandler:
 
     async def fetch_file_from_server(self, filename, downloader, controller):
         """ Request to download a file from server. """
+
+        # TODO: Collect all writing instances from response instead of only first chunk
+        # TODO: How to check if requesthandler has called response.finish()
+
         try:
             dl_url = "/download/%s" % filename
             response = await self.get_request(dl_url)
@@ -187,6 +191,7 @@ class ConnectionHandler:
                                              controller.prompt_password(),
                                              base64.urlsafe_b64decode(response.headers["salt"]),
                                              base64.urlsafe_b64decode(response.headers["iv"]))
+
             else:
                 downloader.write_to_file(data)
 
@@ -194,6 +199,5 @@ class ConnectionHandler:
             t, value, traceback = sys.exc_info()
             Logger.warning("%s" % value)
             return False
-
 
 

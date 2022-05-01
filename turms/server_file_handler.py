@@ -7,7 +7,7 @@
 #   Sipi Ylä-Nojonen, 2022
 
 from os import listdir
-from os.path import isfile, join
+from os.path import isfile, join, getsize
 import json
 from pathvalidate import sanitize_filename, validate_filename
 
@@ -46,10 +46,10 @@ class ServerFileHandler:
 
         # Open file to be read as bytes for server send to user
         if not san_name in ServerFileHandler.raw_server_content():
-            return None
+            return None, None
         else:
             path = CONTENT_PATH + "/" + san_name
             file = open(path, "rb")
-            return file
+            return file, getsize(path)
 
 

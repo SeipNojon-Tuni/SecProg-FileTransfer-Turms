@@ -70,7 +70,6 @@ class App:
 
         Logger.create_logger()
         Logger.info("--- Application initialization finished. ---")
-
         Logger.set_log_level(logging.DEBUG)
 
         self.__run = True
@@ -159,6 +158,9 @@ class App:
         sstop_button.bind("<Button-1>", lambda event: call_async(self.__controller.stop_server(event)))
         filetree.bind("<Double-1>", lambda event: call_async(self.__controller.fetch_file_from_server(event)))
 
+        # On closing window / program
+
+
         return window
 
     async def async_mainloop(self):
@@ -171,3 +173,5 @@ class App:
 
         return self.__widgets[name]
 
+    def on_window_exit(self):
+        Logger.info("Program exiting. Goodbye!")
