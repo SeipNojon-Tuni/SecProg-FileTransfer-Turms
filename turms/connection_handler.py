@@ -7,6 +7,7 @@ import socket
 import sys
 from ipaddress import ip_address
 import base64
+import asyncio
 
 import encrypt
 from logger import TurmsLogger as Logger
@@ -167,11 +168,15 @@ class ConnectionHandler:
         """ Request to download a file from server. """
 
         # TODO: Collect all writing instances from response instead of only first chunk
-        # TODO: How to check if requesthandler has called response.finish()
+        # TODO: How to check if request handler has called response.finish()
 
         try:
             dl_url = "/download/%s" % filename
+
             response = await self.get_request(dl_url)
+            downloader.create_decryptor(controller.prompt_password(),
+                                          base64.urlsafe_b64decode(response.headers["salt"]),
+                                          base64.urlsafe_b64decode(response.headers["iv"]))
 
             if not response:
                 Logger.error("Could not parse response.")
@@ -179,6 +184,9 @@ class ConnectionHandler:
 
             Logger.info("Response: %s %s " % (str(response.code), response.reason))
 
+            print(len(response.body))
+
+            # --------------
             # Decrypt server response if necessary and write content to file.
             data = response.body
             if response.headers["encrypted"] == "True":
@@ -187,13 +195,14 @@ class ConnectionHandler:
                 print(base64.urlsafe_b64decode(response.headers["salt"]))
                 print(base64.urlsafe_b64decode(response.headers["iv"]))
 
-                downloader.decrypt_and_write(data,
-                                             controller.prompt_password(),
-                                             base64.urlsafe_b64decode(response.headers["salt"]),
-                                             base64.urlsafe_b64decode(response.headers["iv"]))
-
+                downloader.decrypt_and_write(data)
             else:
                 downloader.write_to_file(data)
+            await asyncio.sleep(0.01)
+
+            # --------------
+
+            Logger.info("Finished downloading.")
 
         except tornado.httpclient.HTTPClientError:
             t, value, traceback = sys.exc_info()

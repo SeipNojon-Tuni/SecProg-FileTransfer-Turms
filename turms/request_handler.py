@@ -217,14 +217,12 @@ class FileRequestHandler(TurmsRequestHandler):
                         chunk = pad.update(chunk) + pad.finalize()
                         read += rsize
                     try:
-                        Logger.info("%s" % str(size-read))
                         # Each chunk will be sent to client on flush.
                         if self.__allow_unencrypted:
                             final = chunk
                         else:
                             final = self.__encryptor.encrypt(chunk)
                             if size == read:
-                                print("FINALIZED")
                                 final += self.__encryptor.finalize()
                         self.ok()
                         self.write(final)
@@ -235,6 +233,10 @@ class FileRequestHandler(TurmsRequestHandler):
                         del chunk
                         # Pause the coroutine so other handlers can run
                         gen.sleep(0.000000001)  # 1 nanosecond
+
+                    # TODO: REMOVE
+                    print(str(read))
+
                 self.finish()
                 file.close()
                 return

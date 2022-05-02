@@ -20,6 +20,7 @@ DEFAULT_DL_DIRECTORY = "./downloads"
 
 class Downloader:
     __path = None
+    __decryptor = None
 
     def __init__(self, path):
         self.assign_file(path)
@@ -71,51 +72,76 @@ class Downloader:
                 f.write(chunk)
                 f.close()
 
-    # TODO: NEED TO CHANGE THIS TO CHUNKED MODE (No need to check size when single chunks)?
+    def create_decryptor(self, password, salt, iv):
+        """ Create decryptor object for decrypting data.
 
-    def decrypt_and_write(self, data, password, salt, iv):
-        """ Create decryptor and decrypt file content, then save it to file.
-
-        :param data:       Data to write to file.
-        :param password:    User supplied password.
+        :param decryptor:   Decryptor object.
         :param salt:        Salt used for encryption.
         :param iv:          Initialization vector for decryption.
         """
-        decryptor = encrypt.Decryptor(password, salt, iv)
+        self.__decryptor = encrypt.Decryptor(password, salt, iv)
+        return
 
-        # TODO: REMOVE
-        print(data)
+    def decrypt_and_write_chunk(self, data):
+        """ Create decryptor and decrypt file content, then save it to file.
+
+        :param data:        Data to write to file.
+        """
+
+        final = io.BytesIO(data).read()
+        chunk = self.__decryptor.decrypt(final)
+
+        chunk += self.__decryptor.finalize()
+
+        # Unpad undersized chunk for AES encryption.
+        chk_size = int(cfg.get_server_val("ChunkSize", request_handler.CHUNK_SIZE))
+        unpad = padding.PKCS7(chk_size).unpadder()
+        chunk = unpad.update(chunk)
+
+        self.write_to_file(chunk)
+
+
+    def decrypt_and_write(self, data):
+        """ Create decryptor and decrypt file content, then save it to file.
+
+        :param data:        Data to write to file.
+        """
+
         size = len(data)
         written = 0
         f = io.BytesIO(data)
         chunk = None
+        chk_size = int(cfg.get_server_val("ChunkSize", request_handler.CHUNK_SIZE))
 
-        while size - written > 0:
+        if not self.__decryptor:
+            Logger.warning("No decryptor instance created. Cannot decrypt data.")
+            return
+
+        while size - written > chk_size:
             # While size greater than one chunk size remains to be
-            if size - written >= request_handler.CHUNK_SIZE:
-                chunk = f.read(request_handler.CHUNK_SIZE)
-                chunk = decryptor.decrypt(chunk)
-                written += len(chunk)
+            chunk = f.read(request_handler.CHUNK_SIZE)
+            chunk = self.__decryptor.decrypt(chunk)
+            written += len(chunk)
+            self.write_to_file(chunk)
+            del chunk
 
-            # Less than one chunk
-            else:
-                chunk = f.read(size - written)
-                # Save chunk size because it changes in
-                # unpadding process
-                rsize = len(chunk)
-                chunk = decryptor.decrypt(chunk)
-                chunk += decryptor.finalize()
+        # (Less than) one chunk
+        chunk = f.read(size - written)
+        # Save chunk size because it changes in
+        # unpadding process
+        chunk = self.__decryptor.decrypt(chunk)
+        chunk += self.__decryptor.finalize()
 
-
-                # Unpad undersized chunk for AES encryption.
-                chk_size = int(cfg.get_server_val("ChunkSize", request_handler.CHUNK_SIZE))
-                unpad = padding.PKCS7(chk_size).unpadder()
-                chunk = unpad.update(chunk)
-                written += rsize
+        # Unpad undersized chunk for AES encryption.
+        unpad = padding.PKCS7(chk_size).unpadder()
+        chunk = unpad.update(chunk)
+        chunk += unpad.finalize()
 
         # TODO: REMOVE
         print(chunk)
         self.write_to_file(chunk)
+
+        self.__decryptor = None
         return
 
 
