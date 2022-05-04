@@ -4,8 +4,10 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 import logging
+from abc import ABC
 
 import pathvalidate
+import tornado.web
 from tornado import web, iostream, gen
 import tornado.httputil as tutil
 from pathvalidate import validate_filename, sanitize_filename
@@ -143,7 +145,7 @@ class FileRequestHandler(TurmsRequestHandler):
 
     def prepare(self):
         """ Prepare before handling request. Create encryption device where necessary. """
-        self.__allow_unencrypted = cfg.get_bool("SERVER", "AllowUnencrypted")
+        self.__allow_unencrypted = cfg.get_bool("TURMS", "AllowUnencrypted")
 
         # If not allowing unencrypted transfers and no password is defined raise ValueError.
         # In case unencrypted data is allowed don't create encryptor object.
@@ -151,9 +153,9 @@ class FileRequestHandler(TurmsRequestHandler):
         if self.__allow_unencrypted:
             self.__encryptor = None
             return
-        elif not self.__allow_unencrypted and cfg.get_server_val("Password", "") != "":
+        elif not self.__allow_unencrypted and cfg.get_turms_val("Password", "") != "":
             # Create encryptor for this user request.
-            self.__encryptor = encrypt.Encryptor(cfg.get_server_val("Password", ""))
+            self.__encryptor = encrypt.Encryptor(cfg.get_turms_val("Password", ""))
             return
         else:
             self.internal_server_error()
@@ -184,6 +186,11 @@ class FileRequestHandler(TurmsRequestHandler):
                 checksum = encrypt.get_checksum(file.read())
                 file.seek(0, 0)
 
+                # TODO: REMOVE
+                print("FIRST SUM : %s" % checksum)
+                print("SERVER DATA %s" % file.read())
+                file.seek(0, 0)
+
                 # Set encryption headers
                 if self.__allow_unencrypted and not self.__encryptor:
                     self.add_header("encrypted", "False")
@@ -212,7 +219,7 @@ class FileRequestHandler(TurmsRequestHandler):
                         # Pad undersized chunk for AES encryption.
                         # Based on padding module documentation tutorial.
                         # https://cryptography.io/en/latest/hazmat/primitives/padding/
-                        chk_size = int(cfg.get_server_val("ChunkSize", CHUNK_SIZE))
+                        chk_size = int(cfg.get_turms_val("ChunkSize", CHUNK_SIZE))
                         pad = padding.PKCS7(chk_size).padder()
                         chunk = pad.update(chunk) + pad.finalize()
                         read += rsize
@@ -245,4 +252,5 @@ class FileRequestHandler(TurmsRequestHandler):
             # Respond with 'Bad request' if filename is
             # malformed or not a valid filename.
             self.bad_request()
+
 

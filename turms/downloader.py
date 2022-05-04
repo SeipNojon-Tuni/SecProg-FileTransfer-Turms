@@ -8,6 +8,8 @@ import encrypt
 import request_handler
 from logger import TurmsLogger as Logger
 from config import Config as cfg
+from os.path import exists
+from os import remove
 
 from pathvalidate import sanitize_filepath, validate_filepath
 import io
@@ -33,7 +35,6 @@ class Downloader:
         :param path:    Directory path to the file location.
         :return:
         """
-        # TODO: ADD deleting original file if present to overwrite it.
 
         # Sanitize user input file path by replacing
         # unprintable characters with "". Also adds additional
@@ -50,8 +51,13 @@ class Downloader:
 
         # https://github.com/thombashi/pathvalidate/blob/master/pathvalidate/_filepath.py
         validate_filepath(san_location, "auto")
-
         self.__path = san_location
+
+        # Delete original file at location if it exists. Done before starting
+        # download so that writing can open file in append mode and doesn't have
+        # to differentiate between downloaded chunks and existing file.
+        if exists(self.__path):
+            remove(self.__path)
         return
 
     def write_to_file(self, chunk):
@@ -79,39 +85,30 @@ class Downloader:
         :param salt:        Salt used for encryption.
         :param iv:          Initialization vector for decryption.
         """
+
+        if not password or not salt or not iv:
+            Logger.error("Missing parameters. Cannot create decryptor.")
+            return
+
         self.__decryptor = encrypt.Decryptor(password, salt, iv)
         return
-
-    def decrypt_and_write_chunk(self, data):
-        """ Create decryptor and decrypt file content, then save it to file.
-
-        :param data:        Data to write to file.
-        """
-
-        final = io.BytesIO(data).read()
-        chunk = self.__decryptor.decrypt(final)
-
-        chunk += self.__decryptor.finalize()
-
-        # Unpad undersized chunk for AES encryption.
-        chk_size = int(cfg.get_server_val("ChunkSize", request_handler.CHUNK_SIZE))
-        unpad = padding.PKCS7(chk_size).unpadder()
-        chunk = unpad.update(chunk)
-
-        self.write_to_file(chunk)
-
 
     def decrypt_and_write(self, data):
         """ Create decryptor and decrypt file content, then save it to file.
 
-        :param data:        Data to write to file.
+        :param data:    Data to write to file.
         """
 
+        # File is handled here as chunks to make it possible to properly
+        # unpad last chunk despite file size.
+        # Even though server transfers file as chunks it has to be read
+        # fully to memory before decrypting and writing it to file because
+        # of how HTTP response is received as one response.
         size = len(data)
         written = 0
         f = io.BytesIO(data)
         chunk = None
-        chk_size = int(cfg.get_server_val("ChunkSize", request_handler.CHUNK_SIZE))
+        chk_size = int(cfg.get_turms_val("ChunkSize", request_handler.CHUNK_SIZE))
 
         if not self.__decryptor:
             Logger.warning("No decryptor instance created. Cannot decrypt data.")
@@ -137,9 +134,10 @@ class Downloader:
         chunk = unpad.update(chunk)
         chunk += unpad.finalize()
 
-        # TODO: REMOVE
-        print(chunk)
         self.write_to_file(chunk)
+
+        # TODO: REMOVE
+        print("CLIENT DATA %s" % data)
 
         self.__decryptor = None
         return
@@ -160,7 +158,12 @@ class Downloader:
         else:
             # Should close file automatically in case of error.
             with open(self.__path, "rb") as f:
-                ref_sum = encrypt.get_checksum(f)
+                ref_sum = encrypt.get_checksum(f.read())
+
+                # TODO: REMOVE THESE
+                print("GOT SUM %s" % checksum)
+                print("CLIENT SUM : %s" % ref_sum)
+
                 return checksum == ref_sum
 
 

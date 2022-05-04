@@ -167,16 +167,23 @@ class ConnectionHandler:
     async def fetch_file_from_server(self, filename, downloader, controller):
         """ Request to download a file from server. """
 
-        # TODO: Collect all writing instances from response instead of only first chunk
-        # TODO: How to check if request handler has called response.finish()
-
         try:
             dl_url = "/download/%s" % filename
 
             response = await self.get_request(dl_url)
-            downloader.create_decryptor(controller.prompt_password(),
-                                          base64.urlsafe_b64decode(response.headers["salt"]),
-                                          base64.urlsafe_b64decode(response.headers["iv"]))
+
+            salt = b""
+            iv = b""
+            checksum = b""
+
+            try:
+                checksum = base64.urlsafe_b64decode(response.headers["checksum"])
+                salt = base64.urlsafe_b64decode(response.headers["salt"])
+                iv = base64.urlsafe_b64decode(response.headers["iv"])
+            except KeyError:
+                Logger.error("Error parsing response headers. Header not present.")
+
+            downloader.create_decryptor(controller.prompt_password(), salt, iv)
 
             if not response:
                 Logger.error("Could not parse response.")
@@ -184,25 +191,24 @@ class ConnectionHandler:
 
             Logger.info("Response: %s %s " % (str(response.code), response.reason))
 
+            # TODO: REMOVE
             print(len(response.body))
 
-            # --------------
             # Decrypt server response if necessary and write content to file.
             data = response.body
             if response.headers["encrypted"] == "True":
-
-                # TODO: REMOVE THESE
-                print(base64.urlsafe_b64decode(response.headers["salt"]))
-                print(base64.urlsafe_b64decode(response.headers["iv"]))
-
                 downloader.decrypt_and_write(data)
             else:
                 downloader.write_to_file(data)
             await asyncio.sleep(0.01)
 
-            # --------------
-
             Logger.info("Finished downloading.")
+
+            if downloader.compare_checksum(checksum):
+                Logger.info("File integrity check passed.")
+            else:
+                Logger.warning("File integrity check failed. File might be damaged.")
+                # TODO: REMOVE FILE IF DAMAGED
 
         except tornado.httpclient.HTTPClientError:
             t, value, traceback = sys.exc_info()

@@ -13,10 +13,13 @@ class Config:
     user configs from file.
     """
 
-    DEFAULT_CONFIG = {"SERVER": {"Host" : "127.0.0.1",
+    DEFAULT_CONFIG = {"TURMS": {"Host" : "127.0.0.1",
                                  "Port" : "16569",
                                  "Password" : "",
-                                 "AllowUnencrypted" : "False"
+                                 "AllowUnencrypted" : "False",
+                                 "UseTLS": "True",
+                                 "ChunkSize" : "1024",
+                                 "CertPath" : "./keys"
                                  }}
     @staticmethod
     def get_config():
@@ -48,11 +51,25 @@ class Config:
         return cfg[sect].getboolean(name)
 
     @staticmethod
-    def get_server_val(name, fallb):
-        """ Returns Server config field value by name.
+    def get_turms_val(name, fallb):
+        """ Returns Turms config field value by name.
 
         :param name:    Config field name.
         :param fallb:   Fallback value to use if none is found.
         :return:        Config field value.
         """
-        return Config.get_val("SERVER", name, fallb)
+        return Config.get_val("TURMS", name, fallb)
+
+    @staticmethod
+    def get_organization_info():
+        """ Get organization info for CSR """
+        data = {}
+
+        # Get data fields for certificate to authenticate server
+        data["COUNTRY_NAME"] = Config.get_val("ORGANIZATION", "CountryName", "")
+        data["PROVINCE_NAME"] = Config.get_val("ORGANIZATION", "ProvinceName", "")
+        data["LOCALE_NAME"] = Config.get_val("ORGANIZATION", "LocaleName", "")
+        data["ORGANIZATION_NAME"] = Config.get_val("ORGANIZATION", "OrganizationName", "")
+        data["COMMON_NAME"] = Config.get_val("ORGANIZATION", "CommonName", "")
+
+        return data

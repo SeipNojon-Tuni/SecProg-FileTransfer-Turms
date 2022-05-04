@@ -88,24 +88,15 @@ class App:
         window.minsize(1280, 500)
         window.title("Turms File Transfer")
         window.iconphoto(False, tk.PhotoImage(file="icon.png"))
-        window.geometry("1280x500")
-
-        # -- Main frame container --
-        mframe = tk.Frame(window)
-        mframe.grid(row=0, column=0, sticky="NSEW")
-
-        # -- Left side frame --
-        lframe = tk.Frame(mframe)
-        lframe.grid(row=0, column=0, columnspan=2, sticky="NSEW")
+        window.geometry("1400x500")
 
         # -- Right side frame --
-        rframe = tk.Frame(mframe)
-        rframe.grid(row=0, column=2, sticky="NSEW")
+        rframe = tk.Frame(window)
+        rframe.grid(row=0, column=1)
 
         # -- Console window and prompt -- Left side
-        console = console_widget.Console(master=lframe)
-        console.grid(row=0, column=0, padx=2, pady=1, sticky="WE")
-        console.columnconfigure(0, minsize=800)
+        console = console_widget.Console(master=window)
+        console.grid(row=0, column=0, padx=2, pady=1, sticky="NSEW")
 
         # -- Filetree view -- Right side
         filetree = ttk.Treeview(rframe, columns=["filename", "filesize"])
@@ -140,7 +131,6 @@ class App:
         sstop_button.grid(row=5, column=2, padx=2, pady=2, columnspan=2, sticky="E")
 
         # -- Dictionary of widgets --
-        self.__widgets["mframe"] = mframe
         self.__widgets["console"] = console
         self.__widgets["connect"] = c_button
         self.__widgets["disconnect"] = dc_button
@@ -159,7 +149,10 @@ class App:
         filetree.bind("<Double-1>", lambda event: call_async(self.__controller.fetch_file_from_server(event)))
 
         # On closing window / program
+        window.protocol("WM_DELETE_WINDOW", self.on_window_exit)
 
+        window.grid_columnconfigure(0, minsize=1000, weight=2)
+        window.grid_columnconfigure(0, minsize=400, weight=1)
 
         return window
 
@@ -175,3 +168,5 @@ class App:
 
     def on_window_exit(self):
         Logger.info("Program exiting. Goodbye!")
+        self.__run = False
+

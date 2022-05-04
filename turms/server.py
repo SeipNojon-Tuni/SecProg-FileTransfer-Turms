@@ -5,9 +5,11 @@
 #   Sipi Ylä-Nojonen, 2022
 import sys
 
+import encrypt
 import request_handler as rh
 from logger import TurmsLogger as Logger
 from config import Config as cfg
+import view
 
 import tornado.ioloop
 import tornado.web
@@ -54,12 +56,12 @@ class TurmsApp(tornado.web.Application):
 
         # Prioritize initial values if available as: user supplied > config > default
         if port is DEFAULT_PORT:
-            self.__port = int(cfg.get_server_val("Port", DEFAULT_PORT))
+            self.__port = int(cfg.get_turms_val("Port", DEFAULT_PORT))
         else:
             self.__port = port
 
         if host is DEFAULT_HOST:
-            self.__host = cfg.get_server_val("Host", DEFAULT_HOST)
+            self.__host = cfg.get_turms_val("Host", DEFAULT_HOST)
         else:
             self.__host = host
 
@@ -77,8 +79,8 @@ class TurmsApp(tornado.web.Application):
                                                         # Technically this is unnecessary since application
                                                         # handlers only allow "HEAD" and "GET" methods
                                                         # So no server modification should be possible.
-
         }
+
         super().__init__(handlers, **settings)
 
     def run(self, loop):
@@ -89,11 +91,43 @@ class TurmsApp(tornado.web.Application):
         :param loop Target event loop to use for executing
                     asynchronous server loop in.
         """
-        Logger.info("Starting server in port " + str(self.__port))
 
-        # asyncio.set_event_loop(loop)
-        self.__httpserver = self.listen(self.__port, str(self.__host))
-        # loop.run_forever()
+        # Set up TLS and start HTTPS server
+        if cfg.get_bool("TURMS", "UseTLS"):
+            # Load up SSL context to use for authenticating server
+            # It still falls upon user to accept this authentication
+            # and since we don't authenticate user and thus anyone
+            # can download content, the encryption of server files
+            # upon sending is actually the only thing keeping them
+            # secret.
+            try:
+                password = view.View.prompt_input("Please enter password to encrypt keypair.", "*")
+                encrypt.KeyGen.generate_cert_chain(password)
+            except TypeError as e:
+                del password
+                Logger.error(e)
+                return
+            except ValueError as ex:
+                del password
+                Logger.error(ex)
+                return
+
+            ssl_ctx = encrypt.KeyGen.get_context(password)
+
+            # Shouldn't be needed after this
+            del password
+
+            if ssl_ctx:
+                self.__httpserver = tornado.httpserver.HTTPServer(self, ssl_ctx)
+            else:
+                Logger.error("Cannot start server: server is configured to use HTTPS but no SSL context was found.")
+                return
+        # Start up HTTP server.
+        else:
+            self.__httpserver = tornado.httpserver.HTTPServer(self)
+
+        Logger.info("Starting server in port " + str(self.__port))
+        self.__httpserver.listen(self.__port, str(self.__host))
 
     def stop(self, *args):
         """ Stop accepting new connections and await for all current

@@ -5,16 +5,27 @@
 #   Sipi Ylä-Nojonen, 2022
 
 import base64
-import os
-from cryptography.fernet import Fernet
+from os import urandom, path
+import datetime
+from ssl import Purpose
+import ssl
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography import x509
+from cryptography.x509.oid import NameOID
 
-def get_checksum(file):
-    """ Get checksum for file to determine if it has been modified or corrupted. """
+
+from config import Config as cfg
+from logger import TurmsLogger as Logger
+
+def get_checksum(bts):
+    """ Get SHA256 hash for bytestring object. """
     digest = hashes.Hash(hashes.SHA256())
-    digest.update(file)
+    digest.update(bts)
     cs = digest.finalize()
     return cs
 
@@ -38,7 +49,7 @@ class Encryptor:
         # According to python documentation unpredictable
         # enough to be suitable for cryptography.
         # https://docs.python.org/3/library/os.html
-        self.__salt = os.urandom(16)
+        self.__salt = urandom(16)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -53,7 +64,7 @@ class Encryptor:
         # Like salt, use os.urandom for
         # initialization vector since it
         # is cryptosafe.
-        self.__iv = os.urandom(16)
+        self.__iv = urandom(16)
 
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__encryptor = cipher.encryptor()
@@ -130,5 +141,112 @@ class Decryptor:
 
 
 class KeyGen:
-    """ Generate server key pair and certificate with """
-    pass
+
+    @staticmethod
+    def get_context(password):
+        """ Load up certificate and keys for us e
+
+        :param password: Password to use for decrypting key
+        """
+        ctx = ssl.create_default_context()
+        ctx.verify_mode = ssl.CERT_REQUIRED
+
+        save_path = cfg.get_turms_val("CertPath", "./keys")
+
+        ctx.load_cert_chain(
+            certfile = path.join(save_path, "certificate.pem"),
+            keyfile = path.join(save_path, "key.pem"),
+            password = password
+        )
+        return ctx
+
+    @staticmethod
+    def generate_cert_chain(password):
+        """ Generate key pair and certificate to use for HTTPS connection.
+
+        :param password: Password to use for encrypting key on disc.
+        """
+
+        save_path = cfg.get_turms_val("CertPath", "./keys")
+        save_path = path.abspath(save_path)
+        key_path = path.join(save_path, "key.pem")
+
+        # Selfsigned certificate using cryptography libraries
+        # https://cryptography.io/en/latest/x509/tutorial/
+        # Generate key pair
+        key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048
+        )
+
+        with open(key_path, "wb") as f:
+            f.write(key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.BestAvailableEncryption(bytes(password, "utf-8"))
+            ))
+
+        # Fetch information to include in certificate
+        certdata = cfg.get_organization_info()
+        KeyGen.gen_cert(key, certdata, save_path)
+        return
+
+    @staticmethod
+    def gen_cert(keypair, certdata, save_path):
+        """ Create X509 certificate with parameter key and data about
+        organization issuing and using this self-signed certificate.
+
+        :param keypair:     Key pair to sign and pair with certificate
+        :param certdata:    Organization data to include to certificate
+        :param path:        Path to save certificate
+        """
+
+        # For a self-signed certificate the subject and issuer are always the same.
+        # Name data for server entity is supplied by user. Since it is self-signed
+        # connecting user has to themselves choose to trust it.
+
+        # Create cryptosafe random value for session id to identify server
+        # so user connecting can possibly check this value if they can communicate
+        # with user hosting server.
+        server_id = urandom(16)
+
+        Logger.info(" Session token for this server instance is \n +++++++ %s +++++++" % server_id)
+        subject = None
+
+        # Construct X509 certificate with parameter key
+        # https://cryptography.io/en/latest/x509/tutorial/
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, u"%s" % certdata["COUNTRY_NAME"]),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"%s" % certdata["PROVINCE_NAME"]),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, u"%s"  % certdata["LOCALE_NAME"]),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"%s" % certdata["ORGANIZATION_NAME"]),
+            x509.NameAttribute(NameOID.COMMON_NAME, u"%s" % certdata["COMMON_NAME"]),
+            x509.NameAttribute(NameOID.USER_ID, u"%s" % u"%s" % str(server_id)),
+        ])
+
+        cert = x509.CertificateBuilder().subject_name(
+            subject
+        ).issuer_name(
+            issuer
+        ).public_key(
+            keypair.public_key()
+        ).serial_number(
+            x509.random_serial_number()
+        ).not_valid_before(
+            datetime.datetime.utcnow()
+        ).not_valid_after(
+            # Certificate will be valid for 1 day
+            datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        ).add_extension(
+            x509.SubjectAlternativeName([x509.DNSName(u"localhost")]),
+            critical=False,
+            # Sign certificate with private key
+        ).sign(keypair, hashes.SHA256())
+
+        # Get path to save certificate
+        cert_path = path.join(save_path, "certificate.pem")
+
+        # Write certificate out to disk.
+        with open(cert_path, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        return

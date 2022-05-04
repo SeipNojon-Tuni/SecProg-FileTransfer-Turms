@@ -7,8 +7,10 @@
 #   Sipi Ylä-Nojonen, 2022
 
 from os import listdir
-from os.path import isfile, join, getsize
+from os.path import isfile, join, getsize, sep, abspath
 import json
+
+import pathvalidate
 from pathvalidate import sanitize_filename, validate_filename
 
 from logger import TurmsLogger as Logger
@@ -48,8 +50,23 @@ class ServerFileHandler:
         if not san_name in ServerFileHandler.raw_server_content():
             return None, None
         else:
-            path = CONTENT_PATH + "/" + san_name
-            file = open(path, "rb")
-            return file, getsize(path)
+            absolute_path = abspath(CONTENT_PATH) + sep
+            path = absolute_path + san_name
+            absolute_filepath = abspath(path)
+
+            # Check that file location is within given directory path
+            # and the path has not been traversed.
+            if not absolute_filepath.startswith(absolute_path):
+                raise pathvalidate.ValidationError("Illegal filepath.")
+
+            # Open file for reading when path has been validated.
+            if isfile(path):
+                file = open(path, "rb")
+                return file, getsize(path)
+            else:
+                # Was a directory path
+                return None, None
+
+
 
 

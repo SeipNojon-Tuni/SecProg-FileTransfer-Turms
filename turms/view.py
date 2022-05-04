@@ -150,5 +150,14 @@ class View(object):
 
     @staticmethod
     def prompt_password():
-        return simpledialog.askstring(title="Server", prompt="Please enter server password.")
+        """ Prompt user for password to use."""
+        return View.prompt_input("Please enter server password.", "*")
 
+    @staticmethod
+    def prompt_input(msg, show=""):
+        """ Prompt user for string input.
+
+        :param msg:     Message to prompt user with
+        :param show:    Characters to show in place of input
+        """
+        return simpledialog.askstring(title="Server", prompt=msg, show=show)
