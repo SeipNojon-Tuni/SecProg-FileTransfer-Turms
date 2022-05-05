@@ -24,6 +24,7 @@ import asyncio
 #       https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
 #       https://www.speedguide.net/port.php?port=16568
 DEFAULT_PORT = 16569
+DEFAULT_SSL_PORT = 16443
 DEFAULT_HOST = "127.0.0.1"
 
 
@@ -40,7 +41,7 @@ class TurmsApp(tornado.web.Application):
     __cfg = None
     __httpserver = None
 
-    def __init__(self, port=DEFAULT_PORT, host=DEFAULT_HOST):
+    def __init__(self):
         """
         Tornado web application initialized for delegating request handling through HTTPServer class
 
@@ -49,28 +50,19 @@ class TurmsApp(tornado.web.Application):
         host patterns in defining paths for application request handlers instead of r'.*'
 
         https://www.tornadoweb.org/en/stable/web.html#application-configuration
-
-        :param port: Port to listen to when service is run
-        :param host: Host name of server, define loopback options
         """
 
-        # Prioritize initial values if available as: user supplied > config > default
-        if port is DEFAULT_PORT:
-            self.__port = int(cfg.get_turms_val("Port", DEFAULT_PORT))
-        else:
-            self.__port = port
-
-        if host is DEFAULT_HOST:
-            self.__host = cfg.get_turms_val("Host", DEFAULT_HOST)
-        else:
-            self.__host = host
+        # Get values from config or use defaults in case not present.
+        self.__port = int(cfg.get_turms_val("Port", DEFAULT_PORT))
+        self.__sslport = int(cfg.get_turms_val("SSLPort", DEFAULT_SSL_PORT))
+        self.__host = cfg.get_turms_val("Host", DEFAULT_HOST)
 
         # Match host name with defined one to protect against DNS rebinding attacks.
         # This is the tornado.routing format version.
         # https://www.tornadoweb.org/en/stable/guide/security.html#dns-rebinding
-        handlers = [(HostMatches(host), [(r"/", rh.IndexRequestHandler)]),
-                    (HostMatches(host), [(r"/dir/", rh.DirectoryRequestHandler)]),
-                    (HostMatches(host), [(r"/download/*.*", rh.FileRequestHandler)])]
+        handlers = [(HostMatches(self.__host), [(r"/", rh.IndexRequestHandler)]),
+                    (HostMatches(self.__host), [(r"/dir/", rh.DirectoryRequestHandler)]),
+                    (HostMatches(self.__host), [(r"/download/*.*", rh.FileRequestHandler)])]
 
         settings = {
             "xsrf_cookies": True                        # Prevent Cross site request forgery,
@@ -101,8 +93,7 @@ class TurmsApp(tornado.web.Application):
             # upon sending is actually the only thing keeping them
             # secret.
             try:
-                password = view.View.prompt_input("Please enter password to encrypt keypair.", "*")
-                encrypt.KeyGen.generate_cert_chain(password)
+                password = encrypt.KeyGen.generate_cert_chain()
             except TypeError as e:
                 del password
                 Logger.error(e)
@@ -118,16 +109,18 @@ class TurmsApp(tornado.web.Application):
             del password
 
             if ssl_ctx:
-                self.__httpserver = tornado.httpserver.HTTPServer(self, ssl_ctx)
+                self.__httpserver = tornado.httpserver.HTTPServer(self, ssl_options=ssl_ctx)
+                Logger.info("Starting HTTPS server in port " + str(self.__sslport))
+                self.__httpserver.listen(self.__sslport, str(self.__host))
             else:
                 Logger.error("Cannot start server: server is configured to use HTTPS but no SSL context was found.")
                 return
         # Start up HTTP server.
         else:
             self.__httpserver = tornado.httpserver.HTTPServer(self)
-
-        Logger.info("Starting server in port " + str(self.__port))
-        self.__httpserver.listen(self.__port, str(self.__host))
+            Logger.info("Starting HTTP server in port " + str(self.__port))
+            self.__httpserver.listen(self.__port, str(self.__host))
+            return
 
     def stop(self, *args):
         """ Stop accepting new connections and await for all current
@@ -143,13 +136,9 @@ class TurmsApp(tornado.web.Application):
         return self.__cfg
 
 
-def create_server(port, host):
-    """ Initialize server class object with given host address
-
-    :param port: Port to listen to when service is run
-    :param host: Host name of server, define loopback options
-    """
-    return TurmsApp(port, host)
+def create_server():
+    """ Initialize server class object with given host address """
+    return TurmsApp()
 
 
 def start_server(loop, app):

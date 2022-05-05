@@ -186,11 +186,6 @@ class FileRequestHandler(TurmsRequestHandler):
                 checksum = encrypt.get_checksum(file.read())
                 file.seek(0, 0)
 
-                # TODO: REMOVE
-                print("FIRST SUM : %s" % checksum)
-                print("SERVER DATA %s" % file.read())
-                file.seek(0, 0)
-
                 # Set encryption headers
                 if self.__allow_unencrypted and not self.__encryptor:
                     self.add_header("encrypted", "False")
@@ -238,12 +233,8 @@ class FileRequestHandler(TurmsRequestHandler):
                         break
                     finally:
                         del chunk
-                        # Pause the coroutine so other handlers can run
-                        gen.sleep(0.000000001)  # 1 nanosecond
-
-                    # TODO: REMOVE
-                    print(str(read))
-
+                        # Sleep not block and to let other tasks run
+                        gen.sleep(0.000000001)
                 self.finish()
                 file.close()
                 return

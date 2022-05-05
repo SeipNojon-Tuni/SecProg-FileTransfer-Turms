@@ -148,8 +148,11 @@ class KeyGen:
 
         :param password: Password to use for decrypting key
         """
-        ctx = ssl.create_default_context()
-        ctx.verify_mode = ssl.CERT_REQUIRED
+        ctx = ssl.create_default_context(Purpose.CLIENT_AUTH)
+        ctx.check_hostname = False
+
+        # Won't require verification from clients.
+        ctx.verify_mode = ssl.CERT_OPTIONAL
 
         save_path = cfg.get_turms_val("CertPath", "./keys")
 
@@ -161,15 +164,16 @@ class KeyGen:
         return ctx
 
     @staticmethod
-    def generate_cert_chain(password):
+    def generate_cert_chain():
         """ Generate key pair and certificate to use for HTTPS connection.
 
-        :param password: Password to use for encrypting key on disc.
+        :return: Password to use for encrypting key on disc.
         """
 
         save_path = cfg.get_turms_val("CertPath", "./keys")
         save_path = path.abspath(save_path)
         key_path = path.join(save_path, "key.pem")
+        password = urandom(32)
 
         # Selfsigned certificate using cryptography libraries
         # https://cryptography.io/en/latest/x509/tutorial/
@@ -183,13 +187,13 @@ class KeyGen:
             f.write(key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.BestAvailableEncryption(bytes(password, "utf-8"))
+                encryption_algorithm=serialization.BestAvailableEncryption(password)
             ))
 
         # Fetch information to include in certificate
         certdata = cfg.get_organization_info()
         KeyGen.gen_cert(key, certdata, save_path)
-        return
+        return password
 
     @staticmethod
     def gen_cert(keypair, certdata, save_path):
@@ -205,13 +209,9 @@ class KeyGen:
         # Name data for server entity is supplied by user. Since it is self-signed
         # connecting user has to themselves choose to trust it.
 
-        # Create cryptosafe random value for session id to identify server
-        # so user connecting can possibly check this value if they can communicate
-        # with user hosting server.
         server_id = urandom(16)
-
-        Logger.info(" Session token for this server instance is \n +++++++ %s +++++++" % server_id)
         subject = None
+
 
         # Construct X509 certificate with parameter key
         # https://cryptography.io/en/latest/x509/tutorial/
@@ -223,6 +223,25 @@ class KeyGen:
             x509.NameAttribute(NameOID.COMMON_NAME, u"%s" % certdata["COMMON_NAME"]),
             x509.NameAttribute(NameOID.USER_ID, u"%s" % u"%s" % str(server_id)),
         ])
+
+        # Print out certificate information to see
+        Logger.info(
+""" 
+======= SERVER INSTANCE CERTIFICATE INFORMATION =======
+|    Country name:       %s
+|    Province name:      %s
+|    Locality:           %s
+|    Organization:       %s
+|    Common name:        %s
+|    Serve instance ID:  %s
+________________________________________________________
+""" % (certdata["COUNTRY_NAME"],
+       certdata["PROVINCE_NAME"],
+       certdata["LOCALE_NAME"],
+       certdata["ORGANIZATION_NAME"],
+       certdata["COMMON_NAME"],
+       base64.urlsafe_b64encode(server_id)))
+
 
         cert = x509.CertificateBuilder().subject_name(
             subject

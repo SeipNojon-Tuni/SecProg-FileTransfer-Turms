@@ -50,7 +50,7 @@ class ConnectionHandler:
             return False
 
         try:
-            url = "http://%s:%s" % (ipaddr, portint)
+            url = "https://%s:%s" % (ipaddr, portint)
 
             self.__server_url = url
             self.__session = tornado.httpclient.AsyncHTTPClient()
@@ -100,7 +100,9 @@ class ConnectionHandler:
         """
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, path)
-            request = tornado.httpclient.HTTPRequest(url, method="GET")
+
+            # Don't validate certificate since server certificate is self-signed and validation will fail.
+            request = tornado.httpclient.HTTPRequest(url, method="GET", validate_cert=False)
             response = await self.__session.fetch(request)
             return response
         return None
@@ -111,8 +113,12 @@ class ConnectionHandler:
         """
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, "/")
-            request = tornado.httpclient.HTTPRequest(url, "GET")
+
+            # Don't validate certificate since server certificate is self-signed and validation will fail.
+            request = tornado.httpclient.HTTPRequest(url, "GET", validate_cert=False)
             response = await self.__session.fetch(request)
+
+            # TODO: Present server certificate for user to inspect
 
             try:
                 self.__cookies = response.headers["Set-Cookie"]

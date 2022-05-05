@@ -15,8 +15,6 @@ from pathvalidate import sanitize_filepath, validate_filepath
 import io
 from cryptography.hazmat.primitives import padding
 
-# TODO: Whether or not to lock the file between writing chunks
-
 DEFAULT_DL_DIRECTORY = "./downloads"
 
 
@@ -135,13 +133,8 @@ class Downloader:
         chunk += unpad.finalize()
 
         self.write_to_file(chunk)
-
-        # TODO: REMOVE
-        print("CLIENT DATA %s" % data)
-
         self.__decryptor = None
         return
-
 
     def compare_checksum(self, checksum):
         """ Compares given checksum to file in path defined for this instance
@@ -159,11 +152,6 @@ class Downloader:
             # Should close file automatically in case of error.
             with open(self.__path, "rb") as f:
                 ref_sum = encrypt.get_checksum(f.read())
-
-                # TODO: REMOVE THESE
-                print("GOT SUM %s" % checksum)
-                print("CLIENT SUM : %s" % ref_sum)
-
                 return checksum == ref_sum
 
 

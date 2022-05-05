@@ -15,6 +15,7 @@ class Config:
 
     DEFAULT_CONFIG = {"TURMS": {"Host" : "127.0.0.1",
                                  "Port" : "16569",
+                                 "SSLPort" : "16443",
                                  "Password" : "",
                                  "AllowUnencrypted" : "False",
                                  "UseTLS": "True",

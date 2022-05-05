@@ -128,14 +128,9 @@ class Controller:
             # be killed along the main thread when program exits.
 
         """
-        ip = "127.0.0.1"
-
-        # Join server thread to ensure we can set up server again.
-        if self.__server_handle:
-            self.__server_handle.join(10)
 
         if not self.__server:
-            self.__server = server.create_server(server.DEFAULT_PORT, ip)
+            self.__server = server.create_server()
             self.__server_loop = asyncio.new_event_loop()
 
         # self.__server_handle = server.start_server_thread(self.__server_loop, self.__server)
