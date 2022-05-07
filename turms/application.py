@@ -13,6 +13,7 @@ import controller as ctrl
 from logger import TurmsLogger as Logger
 import server
 import view
+from config import Config as cfg
 
 
 def call_async(target):
@@ -54,6 +55,9 @@ class App:
         of creating window and controllers for
         application.
         """
+
+        # Ensure that config file exists
+        cfg.create_config()
 
         # Create tkinter window for app and
         # controller object for input handling.

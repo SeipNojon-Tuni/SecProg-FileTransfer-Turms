@@ -4,9 +4,9 @@
 #   Sipi Ylä-Nojonen, 2022
 
 import configparser
-from logger import TurmsLogger as Logger
+from os.path import exists
 
-CFG_FILE_NAME = "./config/config.cfg"
+CFG_FILE_NAME = "config/config.cfg"
 
 class Config:
     """ Static Configuration class for reading
@@ -16,12 +16,33 @@ class Config:
     DEFAULT_CONFIG = {"TURMS": {"Host" : "127.0.0.1",
                                  "Port" : "16569",
                                  "SSLPort" : "16443",
-                                 "Password" : "",
+                                 "Xsrf" : "True",
                                  "AllowUnencrypted" : "False",
                                  "UseTLS": "True",
                                  "ChunkSize" : "1024",
-                                 "CertPath" : "./keys"
+                                 "CertPath" : "./keys",
+                                 "AutoRemoveDamagedFile": "False"
                                  }}
+
+    DEFAULT_CERT = { "ORGANIZATION": {
+                        "CountryName" : "YY",
+                        "ProvinceName ": "Province",
+                        "LocaleName" : "Locale",
+                        "OrganizationName" : "Org",
+                        "CommonName" : "127.0.0.1"
+                        }
+                    }
+
+    @staticmethod
+    def create_config():
+        """ Create default config if doesn't exist """
+        if not exists(CFG_FILE_NAME):
+            with open(CFG_FILE_NAME, "w") as c:
+                parser = configparser.ConfigParser()
+                parser.read_dict(Config.DEFAULT_CONFIG)
+                parser.read_dict(Config.DEFAULT_CERT)
+                parser.write(c)
+
     @staticmethod
     def get_config():
         """ Create ConfigParser object with
