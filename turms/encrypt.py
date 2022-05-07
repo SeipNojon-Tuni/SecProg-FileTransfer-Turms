@@ -35,8 +35,10 @@ class KeyHolder:
 
     def __init__(self, password):
         # Unencrypted file transfer not allowed but is attempted
-        if not cfg.get_bool("TURMS", "AllowUnencrypted") and self.__pass == "":
-            raise ValueError("Unencrypted file transfer is not allowed, but no password is defined!")
+        Logger.error(bytes(password, "utf-8"))
+
+        if not cfg.get_bool("TURMS", "AllowUnencrypted") and len(password) == 0:
+            raise ValueError("Unencrypted file transfer is not allowed, but no password is defined.")
 
         """ Class to hold user password and create new encryption devices derived from it """
         self.__pass = bytes(password, "utf-8")
@@ -45,8 +47,8 @@ class KeyHolder:
         """ Create new Encryptor with password """
 
         # Unencrypted file transfer not allowed but is attempted
-        if not cfg.get_bool("TURMS", "AllowUnencrypted") and self.__pass == b"":
-            raise ValueError("Unencrypted file transfer is not allowed, but no password is defined!")
+        if not cfg.get_bool("TURMS", "AllowUnencrypted") and len(self.__pass) == 0:
+            raise ValueError("Unencrypted file transfer is not allowed, but no password is defined.")
         return Encryptor(self.__pass)
 
 

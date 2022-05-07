@@ -123,7 +123,12 @@ class Controller:
         """
 
         if not self.__server:
-            self.__server = server.create_server()
+            try:
+                self.__server = server.create_server()
+            # Password missing when encryption is required may raise ValueError
+            except ValueError as e:
+                Logger.error(e)
+                return
             self.__server_loop = asyncio.new_event_loop()
             server.start_server(self.__server)
         else:

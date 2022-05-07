@@ -104,6 +104,7 @@ class TurmsApp(tornado.web.Application):
 
             ssl_ctx = encrypt.KeyGen.get_context(password)
 
+
             # Shouldn't be needed after this
             del password
 
