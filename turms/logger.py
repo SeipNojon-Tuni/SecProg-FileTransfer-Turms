@@ -7,7 +7,8 @@ import logging
 import sys
 
 DEFAULT_LOG = "./logs/turms-latest.log"
-DEFAULT_SERVER_LOG = "./logs/turms-server.log"
+DEFAULT_SERVER_LOG = "./logs/turms-server-latest.log"
+DEFAULT_TORNADO_LOG = "./logs/tornado-latest.log"
 
 
 class TurmsLogger:
@@ -41,6 +42,7 @@ class TurmsLogger:
         formatter = logging.Formatter("<%(asctime)s> %(name)s - %(levelname)s - %(message)s")
 
         console_formatter = logging.Formatter("<%(asctime)s> %(levelname)s: %(message)s")
+        tconsole_formatter = logging.Formatter("<%(asctime)s> -TORNADO- %(levelname)s: %(message)s")
         sconsole_formatter = logging.Formatter("<%(asctime)s> -SERVER- %(levelname)s: %(message)s")
 
         file_handler.setFormatter(formatter)
@@ -55,6 +57,12 @@ class TurmsLogger:
 
         # Add server logging to separate file and GUI console
         server_log = DEFAULT_SERVER_LOG
+        tor_log = DEFAULT_TORNADO_LOG
+        tf_handler = logging.FileHandler(tor_log)
+        tc_handler = logging.StreamHandler(sys.stdout)
+        tf_handler.setFormatter(formatter)
+        tc_handler.setFormatter(tconsole_formatter)
+
         sf_handler = logging.FileHandler(server_log)
         sc_handler = logging.StreamHandler(sys.stdout)
         sf_handler.setFormatter(formatter)
@@ -63,14 +71,18 @@ class TurmsLogger:
         acc_logger = logging.getLogger("tornado.access")
         app_logger = logging.getLogger("tornado.application")
         gen_logger = logging.getLogger("tornado.general")
-        acc_logger.addHandler(sf_handler)
-        acc_logger.addHandler(sc_handler)
 
-        app_logger.addHandler(sf_handler)
-        app_logger.addHandler(sc_handler)
+        ser_logger = logging.getLogger("turms.server")
 
-        gen_logger.addHandler(sf_handler)
-        gen_logger.addHandler(sc_handler)
+        acc_logger.addHandler(tf_handler)
+        acc_logger.addHandler(tc_handler)
+        app_logger.addHandler(tf_handler)
+        app_logger.addHandler(tc_handler)
+        gen_logger.addHandler(tf_handler)
+        gen_logger.addHandler(tc_handler)
+
+        ser_logger.addHandler(sf_handler)
+        ser_logger.addHandler(sc_handler)
 
         return logger
 

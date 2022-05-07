@@ -3,9 +3,8 @@
 #   data display to application GUI
 #
 #   Sipi Ylä-Nojonen, 2022
+
 import asyncio
-import cgi
-import logging
 import queue
 from queue import Empty
 import tkinter as tk

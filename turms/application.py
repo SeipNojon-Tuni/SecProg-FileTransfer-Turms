@@ -8,7 +8,6 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import asyncio
 
-import config
 import console_widget
 import controller as ctrl
 from logger import TurmsLogger as Logger

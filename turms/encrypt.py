@@ -4,7 +4,6 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-import base64
 from os import urandom, path
 import datetime
 from ssl import Purpose
@@ -30,26 +29,49 @@ def get_checksum(bts):
     return cs
 
 
+class KeyHolder:
+    # No get method to not expose this outside through calls
+    __pass = None
+
+    def __init__(self, password):
+        # Unencrypted file transfer not allowed but is attempted
+        if not cfg.get_bool("TURMS", "AllowUnencrypted") and self.__pass == "":
+            raise ValueError("Unencrypted file transfer is not allowed, but no password is defined!")
+
+        """ Class to hold user password and create new encryption devices derived from it """
+        self.__pass = bytes(password, "utf-8")
+
+    def create_encryptor(self):
+        """ Create new Encryptor with password """
+
+        # Unencrypted file transfer not allowed but is attempted
+        if not cfg.get_bool("TURMS", "AllowUnencrypted") and self.__pass == b"":
+            raise ValueError("Unencrypted file transfer is not allowed, but no password is defined!")
+        return Encryptor(self.__pass)
+
+
+
 class Encryptor:
     __machine = None
     __salt = None
     __iv = None
     __encryptor = None
 
-    def __init__(self, password):
+    def __init__(self, bpass):
         """ Class wrapper for encrypting data with python cryptography
         module AES. Key is generated from user input password with
-        SHA256."""
+        SHA256.
 
+        :param bpass:   Password bytes to derive key from.
+        """
         # Create encryption key based on user input password.
         # Based on cryptography module documentation and example.
         # https://cryptography.io/en/latest/fernet/#using-passwords-with-fernet
-        bpass = bytes(password, "utf-8")
 
         # According to python documentation unpredictable
         # enough to be suitable for cryptography.
         # https://docs.python.org/3/library/os.html
-        self.__salt = urandom(16)
+        self.__salt = urandom(32)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -64,11 +86,10 @@ class Encryptor:
         # Like salt, use os.urandom for
         # initialization vector since it
         # is cryptosafe.
-        self.__iv = urandom(16)
+        self.__iv = urandom(32)
 
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__encryptor = cipher.encryptor()
-        return
 
     def encrypt(self, content):
         """ Encrypt given content and return encrypted """
@@ -86,9 +107,6 @@ class Encryptor:
         """ Get initialization vector """
         return self.__iv
 
-    def get_tag(self):
-        """ Get authentication tag """
-        return self.__encryptor.tag
 
 class Decryptor:
 
@@ -209,9 +227,7 @@ class KeyGen:
         # Name data for server entity is supplied by user. Since it is self-signed
         # connecting user has to themselves choose to trust it.
 
-        server_id = urandom(16)
         subject = None
-
 
         # Construct X509 certificate with parameter key
         # https://cryptography.io/en/latest/x509/tutorial/
@@ -221,27 +237,7 @@ class KeyGen:
             x509.NameAttribute(NameOID.LOCALITY_NAME, u"%s"  % certdata["LOCALE_NAME"]),
             x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"%s" % certdata["ORGANIZATION_NAME"]),
             x509.NameAttribute(NameOID.COMMON_NAME, u"%s" % certdata["COMMON_NAME"]),
-            x509.NameAttribute(NameOID.USER_ID, u"%s" % u"%s" % str(server_id)),
         ])
-
-        # Print out certificate information to see
-        Logger.info(
-""" 
-======= SERVER INSTANCE CERTIFICATE INFORMATION =======
-|    Country name:       %s
-|    Province name:      %s
-|    Locality:           %s
-|    Organization:       %s
-|    Common name:        %s
-|    Serve instance ID:  %s
-________________________________________________________
-""" % (certdata["COUNTRY_NAME"],
-       certdata["PROVINCE_NAME"],
-       certdata["LOCALE_NAME"],
-       certdata["ORGANIZATION_NAME"],
-       certdata["COMMON_NAME"],
-       base64.urlsafe_b64encode(server_id)))
-
 
         cert = x509.CertificateBuilder().subject_name(
             subject
@@ -254,7 +250,6 @@ ________________________________________________________
         ).not_valid_before(
             datetime.datetime.utcnow()
         ).not_valid_after(
-            # Certificate will be valid for 1 day
             datetime.datetime.utcnow() + datetime.timedelta(days=1)
         ).add_extension(
             x509.SubjectAlternativeName([x509.DNSName(u"localhost")]),

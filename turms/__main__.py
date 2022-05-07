@@ -6,11 +6,8 @@
 #
 #  Created by Sipi Ylä-Nojonen 2022
 # -----------------------------------------
-import asyncio
 
 import application
-import logger
-
 
 def run():
     """

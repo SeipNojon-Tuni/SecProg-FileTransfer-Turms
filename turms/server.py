@@ -3,7 +3,7 @@
 #   handlers for serving user requests.
 #
 #   Sipi Ylä-Nojonen, 2022
-import sys
+
 
 import encrypt
 import request_handler as rh
@@ -15,7 +15,6 @@ import tornado.ioloop
 import tornado.web
 from tornado.web import HostMatches
 import tornado.httpserver
-import threading
 import asyncio
 
 #   By default use port that is unassigned by IANA
@@ -38,8 +37,8 @@ class TurmsApp(tornado.web.Application):
 
     __host = DEFAULT_HOST
     __port = DEFAULT_PORT
-    __cfg = None
     __httpserver = None
+    __keyhold = None
 
     def __init__(self):
         """
@@ -73,15 +72,15 @@ class TurmsApp(tornado.web.Application):
                                                         # So no server modification should be possible.
         }
 
+        # Create encryption device factory
+        self.__keyhold = encrypt.KeyHolder(view.View.prompt_password())
+
         super().__init__(handlers, **settings)
 
-    def run(self, loop):
+    def run(self):
         """
         Start up the server in asyncio.event_loop instance and
         start listening to connections in given port.
-
-        :param loop Target event loop to use for executing
-                    asynchronous server loop in.
         """
 
         # Set up TLS and start HTTPS server
@@ -132,8 +131,9 @@ class TurmsApp(tornado.web.Application):
         Logger.info("Server stopped.")
         return
 
-    def get_cfg(self):
-        return self.__cfg
+    def get_encryptor(self):
+        # Recreate encryptor when new reference to it is made.
+        return self.__keyhold.create_encryptor()
 
 
 def create_server():
@@ -141,13 +141,12 @@ def create_server():
     return TurmsApp()
 
 
-def start_server(loop, app):
+def start_server(app):
     """ Initialize and start up server
 
-    :param loop: Asyncio event loop to pass on to server application
     :param app:  TurmsApp Application to run.
     """
-    app.run(loop)
+    app.run()
     return
 
 
@@ -161,22 +160,6 @@ def stop_server(loop, app):
     asyncio.get_event_loop().call_soon_threadsafe(app.stop, loop)
     loop.stop()
     return
-
-
-# --- TODO: Redundant, Moving server to asynchronous execution. ---
-def start_server_thread(loop, app):
-    """ Start TurmsApp application to run server in separate daemon thread.
-    Call for "App.run()" with given parameters to set up asynchronous tornado
-    server in daemon thread.
-
-    :param loop Asyncio event loop to pass to function
-    :param app  Application object to run
-    """
-
-    server_th = threading.Thread(target=start_server, args=[loop, app])
-    server_th.daemon = True
-    server_th.start()
-    return server_th
 
 
 

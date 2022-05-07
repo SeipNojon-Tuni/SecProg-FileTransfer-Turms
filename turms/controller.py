@@ -3,21 +3,14 @@
 #   user input to be processed
 #
 #   Sipi Ylä-Nojonen, 2022
-import threading
-import tkinter.filedialog
-
-import pathvalidate
-import tornado.ioloop
 
 import downloader
-import encrypt
 import server
 import connection_handler
 import view
 from logger import TurmsLogger as Logger
 import asyncio
 from pathvalidate import validate_filename, sanitize_filename
-import sys
 
 class Controller:
 
@@ -39,7 +32,7 @@ class Controller:
         :param view     MVC type View object responsible for updating GUI.
         """
 
-        self.__widgets = widgets          # TODO: Weakref to avoid cyclic reference
+        self.__widgets = widgets
         self.__window = window
         self.__view = view
         self.__conn_handler = connection_handler.ConnectionHandler()
@@ -132,26 +125,13 @@ class Controller:
         if not self.__server:
             self.__server = server.create_server()
             self.__server_loop = asyncio.new_event_loop()
-
-        # self.__server_handle = server.start_server_thread(self.__server_loop, self.__server)
-        server.start_server(self.__server_loop, self.__server)
+            server.start_server(self.__server)
+        else:
+            Logger.error("Can't start a server. Server is already running.")
         return
 
     async def stop_server(self, event):
-        """ Delegate for daemon server to be shut down if it is running.
-        --------------------------------------------------------------
-
-        :param event:   Tkinter event fired when action to call function was taken
-        :return:        None
-        Note:
-            # Daemon thread is not joined when stopping server since 'threading.Thread.join()'
-            # would block asyncio loop execution and hang the program.
-            # Using timeout would also result in server thread never finishing
-            # and being killed after timeout instead.
-            # Thus, joining to main thread is done when server is started again instead
-            # or - as server thread is daemon - when program and main thread finishes
-            # execution.
-        """
+        """ Call for server to stop accepting new connections, close all existing ones and exit. """
         if self.__server:
             server.stop_server(self.__server_loop, self.__server)
 

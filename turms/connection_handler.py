@@ -3,14 +3,13 @@
 #   and delegating answers
 #
 #   Sipi Ylä-Nojonen, 2022
-import socket
 import sys
 from ipaddress import ip_address
 import base64
 import asyncio
 
-import encrypt
 from logger import TurmsLogger as Logger
+from config import Config as cfg
 
 import tornado.simple_httpclient
 import tornado.httpclient
@@ -118,8 +117,6 @@ class ConnectionHandler:
             request = tornado.httpclient.HTTPRequest(url, "GET", validate_cert=False)
             response = await self.__session.fetch(request)
 
-            # TODO: Present server certificate for user to inspect
-
             try:
                 self.__cookies = response.headers["Set-Cookie"]
             except KeyError:
@@ -197,9 +194,6 @@ class ConnectionHandler:
 
             Logger.info("Response: %s %s " % (str(response.code), response.reason))
 
-            # TODO: REMOVE
-            print(len(response.body))
-
             # Decrypt server response if necessary and write content to file.
             data = response.body
             if response.headers["encrypted"] == "True":
@@ -214,11 +208,11 @@ class ConnectionHandler:
                 Logger.info("File integrity check passed.")
             else:
                 Logger.warning("File integrity check failed. File might be damaged.")
-                # TODO: REMOVE FILE IF DAMAGED
+                if cfg.get_bool("TURMS", "AutoRemoveDamagedFile"):
+                    downloader.remove_file()
 
         except tornado.httpclient.HTTPClientError:
             t, value, traceback = sys.exc_info()
             Logger.warning("%s" % value)
             return False
-
 

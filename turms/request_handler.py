@@ -3,24 +3,22 @@
 #   to server requests from single user connection.
 #
 #   Sipi Ylä-Nojonen, 2022
-import logging
-from abc import ABC
+
+CHUNK_SIZE = 1024
 
 import pathvalidate
-import tornado.web
 from tornado import web, iostream, gen
 import tornado.httputil as tutil
-from pathvalidate import validate_filename, sanitize_filename
 import base64
 from cryptography.hazmat.primitives import padding
 
 
 import encrypt
+import server
 from logger import TurmsLogger as Logger
 from server_file_handler import ServerFileHandler as Sfh
 from config import Config as cfg
 
-CHUNK_SIZE = 1024
 
 
 class TurmsRequestHandler(web.RequestHandler):
@@ -44,7 +42,7 @@ class TurmsRequestHandler(web.RequestHandler):
         """ Log request before processing """
         Logger.warning("User requested path '%s' with %s, from %s." % (self.request.path,
                                                                        self.request.method,
-                                                                       self.request.remote_ip), "tornado.access")
+                                                                       self.request.remote_ip), "turms.server")
 
     # Unsupported methods
     def post(self):
@@ -143,6 +141,10 @@ class FileRequestHandler(TurmsRequestHandler):
     __encryptor = None
     __allow_unencrypted = False
 
+    # Application should be Turms web application instead of
+    # tornado.web.Application super class object
+    application: server.TurmsApp
+
     def prepare(self):
         """ Prepare before handling request. Create encryption device where necessary. """
         self.__allow_unencrypted = cfg.get_bool("TURMS", "AllowUnencrypted")
@@ -153,14 +155,16 @@ class FileRequestHandler(TurmsRequestHandler):
         if self.__allow_unencrypted:
             self.__encryptor = None
             return
-        elif not self.__allow_unencrypted and cfg.get_turms_val("Password", "") != "":
+        elif not self.__allow_unencrypted:
             # Create encryptor for this user request.
-            self.__encryptor = encrypt.Encryptor(cfg.get_turms_val("Password", ""))
-            return
-        else:
-            self.internal_server_error()
-            Logger.error("Password must be defined when unencrypted file transfer is not allowed.", "tornado.access")
-            return
+            try:
+                self.__encryptor = self.application.get_encryptor()
+                return
+            except ValueError:
+                self.internal_server_error()
+                Logger.error("Password must be defined when unencrypted file transfer is not allowed.",
+                             "turms.server")
+                return
 
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """

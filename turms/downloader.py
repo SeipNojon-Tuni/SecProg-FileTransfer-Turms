@@ -3,7 +3,9 @@
 #   bytestring to a file.
 #
 #   Sipi Ylä-Nojonen, 2022
-import config
+
+DEFAULT_DL_DIRECTORY = "./downloads"
+
 import encrypt
 import request_handler
 from logger import TurmsLogger as Logger
@@ -14,8 +16,6 @@ from os import remove
 from pathvalidate import sanitize_filepath, validate_filepath
 import io
 from cryptography.hazmat.primitives import padding
-
-DEFAULT_DL_DIRECTORY = "./downloads"
 
 
 class Downloader:
@@ -154,5 +154,9 @@ class Downloader:
                 ref_sum = encrypt.get_checksum(f.read())
                 return checksum == ref_sum
 
-
+    def remove_file(self):
+        """ Remove assigned file """
+        if exists(self.__path):
+            remove(self.__path)
+        return
 
