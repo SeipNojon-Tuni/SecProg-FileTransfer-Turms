@@ -160,10 +160,9 @@ class FileRequestHandler(TurmsRequestHandler):
             try:
                 self.__encryptor = self.application.get_encryptor()
                 return
-            except ValueError:
+            except ValueError as e:
                 self.internal_server_error()
-                Logger.error("Password must be defined when unencrypted file transfer is not allowed.",
-                             "turms.server")
+                Logger.error(e)
                 return
 
     def head(self):

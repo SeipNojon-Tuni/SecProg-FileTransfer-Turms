@@ -19,8 +19,6 @@ class Controller:
     __window = None
     __conn_handler = None
     __server = None
-    __server_handle = None
-    __server_loop = None
 
     def __init__(self, widgets, window, view):
         """:type Controller: Turms Application controller class
@@ -129,8 +127,8 @@ class Controller:
             except ValueError as e:
                 Logger.error(e)
                 return
-            self.__server_loop = asyncio.new_event_loop()
-            server.start_server(self.__server)
+            self.__server.run()
+            self.state_to_server_running()
         else:
             Logger.error("Can't start a server. Server is already running.")
         return
@@ -138,7 +136,9 @@ class Controller:
     async def stop_server(self, event):
         """ Call for server to stop accepting new connections, close all existing ones and exit. """
         if self.__server:
-            server.stop_server(self.__server_loop, self.__server)
+            self.__server.stop()
+            del self.__server
+            self.state_to_server_stopped()
 
     def state_to_connect(self):
         """ Delegate for View to change GUI state to being connected to server """
@@ -150,11 +150,11 @@ class Controller:
 
     def state_to_server_running(self):
         """ Delegate for View to change GUI state to server running """
-        pass
+        self.__view.state_to_server_running()
 
     def state_to_server_stopped(self):
         """ Delegate for View to change GUI state to server not running """
-        pass
+        self.__view.state_to_server_stopped()
 
     def update_filetree(self, items):
         """ Delegate for View to printout details if given file list to GUI """

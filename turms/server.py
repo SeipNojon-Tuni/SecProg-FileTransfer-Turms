@@ -39,6 +39,7 @@ class TurmsApp(tornado.web.Application):
     __port = DEFAULT_PORT
     __httpserver = None
     __keyhold = None
+    running = False
 
     def __init__(self):
         """
@@ -77,6 +78,7 @@ class TurmsApp(tornado.web.Application):
 
         super().__init__(handlers, **settings)
 
+
     def run(self):
         """
         Start up the server in asyncio.event_loop instance and
@@ -112,14 +114,18 @@ class TurmsApp(tornado.web.Application):
                 self.__httpserver = tornado.httpserver.HTTPServer(self, ssl_options=ssl_ctx)
                 Logger.info("Starting HTTPS server in port " + str(self.__sslport))
                 self.__httpserver.listen(self.__sslport, str(self.__host))
+                self.running = True
+                return
             else:
                 Logger.error("Cannot start server: server is configured to use HTTPS but no SSL context was found.")
                 return
+
         # Start up HTTP server.
         else:
             self.__httpserver = tornado.httpserver.HTTPServer(self)
             Logger.info("Starting HTTP server in port " + str(self.__port))
             self.__httpserver.listen(self.__port, str(self.__host))
+            self.running = True
             return
 
     def stop(self, *args):
@@ -130,6 +136,7 @@ class TurmsApp(tornado.web.Application):
             self.__httpserver.stop()
             asyncio.get_event_loop().create_task(self.__httpserver.close_all_connections())
         Logger.info("Server stopped.")
+        self.running = False
         return
 
     def get_encryptor(self):
@@ -142,28 +149,15 @@ def create_server():
     return TurmsApp()
 
 
-def start_server(app):
-    """ Initialize and start up server
-
-    :param app:  TurmsApp Application to run.
-    """
-    app.run()
-    return
-
-
-def stop_server(loop, app):
+def stop_server(app):
     """ Stop server running in separate thread
 
     :param loop  Currently running asyncio.event_loop of target thread
     :param app   TurmsApp server handling application object
     """
     Logger.info("Server stopping...")
-    asyncio.get_event_loop().call_soon_threadsafe(app.stop, loop)
-    loop.stop()
+    asyncio.get_event_loop().call_soon_threadsafe(app.stop, asyncio.get_event_loop())
     return
-
-
-
 
 
 

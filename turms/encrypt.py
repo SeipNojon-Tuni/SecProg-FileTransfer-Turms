@@ -6,7 +6,6 @@
 
 from os import urandom, path
 import datetime
-from ssl import Purpose
 import ssl
 
 from cryptography.hazmat.primitives import hashes
@@ -17,9 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 
-
 from config import Config as cfg
-from logger import TurmsLogger as Logger
 
 def get_checksum(bts):
     """ Get SHA256 hash for bytestring object. """
@@ -45,10 +42,9 @@ class KeyHolder:
         """ Create new Encryptor with password """
 
         # Unencrypted file transfer not allowed but is attempted
-        if not cfg.get_bool("TURMS", "AllowUnencrypted") and len(self.__pass) == 0:
+        if not cfg.get_bool("TURMS", "AllowUnencrypted") and (len(self.__pass) == 0):
             raise ValueError("Unencrypted file transfer is not allowed, but no password is defined.")
         return Encryptor(self.__pass)
-
 
 
 class Encryptor:
@@ -86,7 +82,7 @@ class Encryptor:
         # Like salt, use os.urandom for
         # initialization vector since it
         # is cryptosafe.
-        self.__iv = urandom(32)
+        self.__iv = urandom(16)
 
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__encryptor = cipher.encryptor()
@@ -166,7 +162,7 @@ class KeyGen:
 
         :param password: Password to use for decrypting key
         """
-        ctx = ssl.create_default_context(Purpose.CLIENT_AUTH)
+        ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         ctx.check_hostname = False
 
         # Won't require verification from clients.

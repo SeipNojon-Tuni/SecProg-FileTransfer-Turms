@@ -106,6 +106,15 @@ class View(object):
         self.__widgets["connect"]["state"] = tk.NORMAL
         self.__widgets["disconnect"]["state"] = tk.DISABLED
 
+    def state_to_server_running(self):
+        """ Change GUI to show 'server running' state """
+        self.__widgets["serverstop"]["state"] = tk.NORMAL
+        self.__widgets["serverstart"]["state"] = tk.DISABLED
+    def state_to_server_stopped(self):
+        """ Change GUI to show 'server not running' state """
+        self.__widgets["serverstart"]["state"] = tk.NORMAL
+        self.__widgets["serverstop"]["state"] = tk.DISABLED
+
     def print_out_filetree(self, content):
         """
         Prints out list of filenames to application GUI filetree view

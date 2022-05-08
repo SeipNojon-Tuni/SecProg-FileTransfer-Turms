@@ -124,14 +124,14 @@ class App:
         # -- Connect button / disconnect button --
         c_button = ttk.Button(master=rframe, text="Connect")
         dc_button = ttk.Button(master=rframe, text="Disconnect", state="disabled")
-        c_button.grid(row=2, column=2, padx=2, pady=2, columnspan=2, sticky="E")
-        dc_button.grid(row=4, column=2, padx=2, pady=2, columnspan=2, sticky="E")
+        c_button.grid(row=5, column=0, padx=2, pady=2, columnspan=2, sticky="E")
+        dc_button.grid(row=6, column=0, padx=2, pady=2, columnspan=2, sticky="E")
 
         s_button = ttk.Button(master=rframe, text="Start Server")
-        s_button.grid(row=5, column=0, padx=2, pady=2, columnspan=2, sticky="E")
+        s_button.grid(row=5, column=2, padx=2, pady=2, columnspan=2, sticky="E")
 
-        sstop_button = ttk.Button(master=rframe, text="Stop Server")
-        sstop_button.grid(row=5, column=2, padx=2, pady=2, columnspan=2, sticky="E")
+        sstop_button = ttk.Button(master=rframe, text="Stop Server", state="disabled")
+        sstop_button.grid(row=6, column=2, padx=2, pady=2, columnspan=2, sticky="E")
 
         # -- Dictionary of widgets --
         self.__widgets["console"] = console

@@ -42,6 +42,11 @@ class ServerFileHandler:
 
     @staticmethod
     def fetch_server_content():
+        """
+        Fetch filenames in directory and create JSON from the data
+
+        :return:    JSON of list of filenames in content directory
+        """
         # From content directory get files and not directories.
         onlyfiles = ServerFileHandler.raw_server_content()
 

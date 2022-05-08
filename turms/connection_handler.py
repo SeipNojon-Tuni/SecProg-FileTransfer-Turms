@@ -216,3 +216,7 @@ class ConnectionHandler:
             Logger.warning("%s" % value)
             return False
 
+        except ConnectionRefusedError:
+            Logger.error("Server refused connection.")
+
+
