@@ -6,25 +6,39 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-from os import listdir
-from os.path import isfile, join, getsize, sep, abspath
-import json
-
-import pathvalidate
-from pathvalidate import sanitize_filename, validate_filename
-
-from logger import TurmsLogger as Logger
-
 CONTENT_PATH = "./content"
+
+from os import listdir, mkdir
+from os.path import isfile, isdir, join, getsize, sep, abspath, exists
+import json
+from pathvalidate import sanitize_filename, validate_filename, ValidationError
 
 
 class ServerFileHandler:
 
     @staticmethod
     def raw_server_content():
+        """
+        Get filenames in content directory
+
+        :return:    List of filenames present
+        """
+
         # From content directory get files and not directories.
-        onlyfiles = [f for f in listdir(CONTENT_PATH) if isfile(join(CONTENT_PATH, f))]
-        return onlyfiles
+        try:
+            # Create content directory if not present
+            if not exists(CONTENT_PATH):
+                mkdir(CONTENT_PATH)
+
+            if not isdir(CONTENT_PATH):
+                return []
+
+
+            onlyfiles = [f for f in listdir(CONTENT_PATH) if isfile(join(CONTENT_PATH, f))]
+            return onlyfiles
+        except FileNotFoundError:
+
+            return []
 
     @staticmethod
     def fetch_server_content():
@@ -57,7 +71,7 @@ class ServerFileHandler:
             # Check that file location is within given directory path
             # and the path has not been traversed.
             if not absolute_filepath.startswith(absolute_path):
-                raise pathvalidate.ValidationError("Illegal filepath.")
+                raise ValidationError("Illegal filepath.")
 
             # Open file for reading when path has been validated.
             if isfile(path):
