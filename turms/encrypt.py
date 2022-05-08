@@ -35,8 +35,6 @@ class KeyHolder:
 
     def __init__(self, password):
         # Unencrypted file transfer not allowed but is attempted
-        Logger.error(bytes(password, "utf-8"))
-
         if not cfg.get_bool("TURMS", "AllowUnencrypted") and len(password) == 0:
             raise ValueError("Unencrypted file transfer is not allowed, but no password is defined.")
 
