@@ -144,21 +144,6 @@ class TurmsApp(tornado.web.Application):
         return self.__keyhold.create_encryptor()
 
 
-def create_server():
-    """ Initialize server class object with given host address """
-    return TurmsApp()
-
-
-def stop_server(app):
-    """ Stop server running in separate thread
-
-    :param loop  Currently running asyncio.event_loop of target thread
-    :param app   TurmsApp server handling application object
-    """
-    Logger.info("Server stopping...")
-    asyncio.get_event_loop().call_soon_threadsafe(app.stop, asyncio.get_event_loop())
-    return
-
 
 
 

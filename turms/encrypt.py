@@ -4,7 +4,7 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-from os import urandom, path
+from os import urandom, path, mkdir
 import datetime
 import ssl
 
@@ -188,6 +188,10 @@ class KeyGen:
         save_path = path.abspath(save_path)
         key_path = path.join(save_path, "key.pem")
         password = urandom(32)
+
+        # Create key directory if not existent
+        if not path.exists(save_path):
+            mkdir(save_path)
 
         # Selfsigned certificate using cryptography libraries
         # https://cryptography.io/en/latest/x509/tutorial/
