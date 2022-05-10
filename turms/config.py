@@ -4,6 +4,7 @@
 #   Sipi Ylä-Nojonen, 2022
 
 import configparser
+import socket
 from os.path import exists
 
 CFG_FILE_NAME = "config/config.cfg"
@@ -13,15 +14,15 @@ class Config:
     user configs from file.
     """
 
-    DEFAULT_CONFIG = {"TURMS": {"Host" : "127.0.0.1",
-                                 "Port" : "16569",
+    DEFAULT_CONFIG = {"TURMS": {"Host" : socket.gethostbyname(socket.gethostname()),
+                                 "Port" : "16580",
                                  "SSLPort" : "16443",
                                  "Xsrf" : "True",
                                  "AllowUnencrypted" : "False",
                                  "UseTLS": "True",
                                  "ChunkSize" : "1024",
                                  "CertPath" : "./keys",
-                                 "AutoRemoveDamagedFile": "False"
+                                 "AutoRemoveDamagedFile": "True"
                                  }}
 
     DEFAULT_CERT = { "ORGANIZATION": {
