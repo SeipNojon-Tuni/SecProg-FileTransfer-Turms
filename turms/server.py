@@ -21,8 +21,8 @@ import asyncio
 #   and not known to be widely used by other applications.
 #   according to listing such as:
 #       https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
-#       https://www.speedguide.net/port.php?port=16568
-DEFAULT_PORT = 16569
+#       https://www.speedguide.net/port.php?port=16580
+DEFAULT_PORT = 16580
 DEFAULT_SSL_PORT = 16443
 DEFAULT_HOST = "127.0.0.1"
 

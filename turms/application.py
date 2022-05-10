@@ -118,9 +118,6 @@ class App:
         port = ttk.Entry(rframe)
         port.grid(row=4, column=0, padx=1, pady=2, columnspan=2, sticky="E")
 
-        ip_addr.insert(tk.END, server.DEFAULT_HOST)
-        port.insert(tk.END, str(server.DEFAULT_PORT))
-
         # -- Connect button / disconnect button --
         c_button = ttk.Button(master=rframe, text="Connect")
         dc_button = ttk.Button(master=rframe, text="Disconnect", state="disabled")
