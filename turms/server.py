@@ -79,10 +79,12 @@ class TurmsApp(tornado.web.Application):
         super().__init__(handlers, **settings)
 
 
-    def run(self):
+    def run(self, timeout=3600):
         """
         Start up the server in asyncio.event_loop instance and
         start listening to connections in given port.
+
+        :param timeout: Delay after which to shut down server.
         """
 
         # Set up TLS and start HTTPS server
@@ -115,6 +117,7 @@ class TurmsApp(tornado.web.Application):
                 Logger.info("Starting HTTPS server in port " + str(self.__sslport))
                 self.__httpserver.listen(self.__sslport, str(self.__host))
                 self.running = True
+                asyncio.get_event_loop().create_task(self.server_timeout(timeout))
                 return
             else:
                 Logger.error("Cannot start server: server is configured to use HTTPS but no SSL context was found.")
@@ -126,6 +129,7 @@ class TurmsApp(tornado.web.Application):
             Logger.info("Starting HTTP server in port " + str(self.__port))
             self.__httpserver.listen(self.__port, str(self.__host))
             self.running = True
+            asyncio.get_event_loop().create_task(self.server_timeout(timeout))
             return
 
     def stop(self, *args):
@@ -137,6 +141,17 @@ class TurmsApp(tornado.web.Application):
             asyncio.get_event_loop().create_task(self.__httpserver.close_all_connections())
         Logger.info("Server stopped.")
         self.running = False
+        return
+
+    async def server_timeout(self, time=3600):
+        """ Call for server to shutdown after delay
+
+        :param time:    Timeout delay
+        """
+        # Asyncio sleep is in seconds (default 3600s=1h)
+        await asyncio.sleep(time)
+        Logger.info("Server timed out, stopping server...")
+        self.stop()
         return
 
     def get_encryptor(self):
