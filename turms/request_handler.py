@@ -149,21 +149,15 @@ class FileRequestHandler(TurmsRequestHandler):
         """ Prepare before handling request. Create encryption device where necessary. """
         self.__allow_unencrypted = cfg.get_bool("TURMS", "AllowUnencrypted")
 
-        # If not allowing unencrypted transfers and no password is defined raise ValueError.
-        # In case unencrypted data is allowed don't create encryptor object.
-
-        if self.__allow_unencrypted:
-            self.__encryptor = None
+        # Create encryptor for this user request.
+        # If unencrypted transfer is not allowed and no password is defined raises ValueError.
+        try:
+            self.__encryptor = self.application.get_encryptor()
             return
-        elif not self.__allow_unencrypted:
-            # Create encryptor for this user request.
-            try:
-                self.__encryptor = self.application.get_encryptor()
-                return
-            except ValueError as e:
-                self.internal_server_error()
-                Logger.error(e)
-                return
+        except ValueError as e:
+            self.internal_server_error()
+            Logger.error(e)
+            return
 
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """

@@ -55,7 +55,7 @@ class TurmsApp(tornado.web.Application):
         # Get values from config or use defaults in case not present.
         self.__port = int(cfg.get_turms_val("Port", DEFAULT_PORT))
         self.__sslport = int(cfg.get_turms_val("SSLPort", DEFAULT_SSL_PORT))
-        self.__host = cfg.get_turms_val("Host", DEFAULT_HOST)
+        self.__host = cfg.get_turms_val("Ip-Address", DEFAULT_HOST)
 
         # Match host name with defined one to protect against DNS rebinding attacks.
         # This is the tornado.routing format version.

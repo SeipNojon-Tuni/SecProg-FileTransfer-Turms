@@ -14,13 +14,12 @@ class Config:
     user configs from file.
     """
 
-    DEFAULT_CONFIG = {"TURMS": {"Host" : socket.gethostbyname(socket.gethostname()),
+    DEFAULT_CONFIG = {"TURMS": {"Ip-Address" : socket.gethostbyname(socket.gethostname()),
                                  "Port" : "16580",
                                  "SSLPort" : "16443",
                                  "Xsrf" : "True",
                                  "AllowUnencrypted" : "False",
                                  "UseTLS": "True",
-                                 "ChunkSize" : "1024",
                                  "CertPath" : "./keys",
                                  "AutoRemoveDamagedFile": "True"
                                  }}
