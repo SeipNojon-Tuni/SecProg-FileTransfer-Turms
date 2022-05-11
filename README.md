@@ -10,15 +10,15 @@ as OWASP top ten list of web application security risks.
 ### **Windows** 
 1. Ensure that you have Python 3.10.X installed from [Python Dowloads Page](https://www.python.org/downloads/).
 2. Install required packages with 
-´pip install <PACKAGE>==<VERSION>´.
+`pip install <PACKAGE>==<VERSION>`.
 The list of requirements can be found in [requirements.txt](https://github.com/SeipNojon-Tuni/SecProg-FileTransfer-Turms/requirements.txt)
 3. Clone repository with
-´git clone https://github.com/SeipNojon-Tuni/SecProg-FileTransfer-Turms.git´
+`git clone https://github.com/SeipNojon-Tuni/SecProg-FileTransfer-Turms.git`
 4. Start application by running
 ´py <Path to project root>/turms/__main__.py´
 
 ## Usage
 After application has started it can be used through Tkinter GUI. A configuration file will generated on start up if it doesn't exist in
-´<Path to project root>/turms/config/config.cfg´
+`<Path to project root>/turms/config/config.cfg`
 When running a server this can be used to define ip address for the server to determine the area network type for hosting.
 
