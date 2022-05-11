@@ -28,7 +28,7 @@ DEFAULT_HOST = socket.gethostbyname(socket.gethostname())
 
 
 #   -------------------------------------------------------
-#   By default security features Tornado implements
+#   By default security features Tornado supports
 #   include secure cookies, XSRF protection and
 #   protection against DNS rebinding attacks.
 #   https://www.tornadoweb.org/en/stable/guide/security.html
