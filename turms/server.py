@@ -76,7 +76,7 @@ class TurmsApp(tornado.web.Application):
         # Create encryption device factory
         self.__keyhold = encrypt.KeyHolder(view.View.prompt_password())
 
-        super().__init__(handlers, **settings)
+        super().__init__(handlers, default_host=None, **settings)
 
 
     def run(self, timeout=3600):
@@ -95,6 +95,10 @@ class TurmsApp(tornado.web.Application):
             # can download content, the encryption of server files
             # upon sending is actually the only thing keeping them
             # secret.
+            # Problem is tornado client doesn't have an easy way of
+            # accessing the certificate and it is handled inside the
+            # ssl socket and we can't show it to client of manual
+            # inspection.
             try:
                 password = encrypt.KeyGen.generate_cert_chain()
             except TypeError as e:
@@ -108,10 +112,10 @@ class TurmsApp(tornado.web.Application):
 
             ssl_ctx = encrypt.KeyGen.get_context(password)
 
-
-            # Shouldn't be needed after this
+            # Remove so it won't be accessed later
             del password
 
+            # Start up HTTPS server
             if ssl_ctx:
                 self.__httpserver = tornado.httpserver.HTTPServer(self, ssl_options=ssl_ctx)
                 Logger.info("Starting HTTPS server in port " + str(self.__sslport))
