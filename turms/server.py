@@ -3,7 +3,7 @@
 #   handlers for serving user requests.
 #
 #   Sipi Ylä-Nojonen, 2022
-
+import socket
 
 import encrypt
 import request_handler as rh
@@ -24,7 +24,7 @@ import asyncio
 #       https://www.speedguide.net/port.php?port=16580
 DEFAULT_PORT = 16580
 DEFAULT_SSL_PORT = 16443
-DEFAULT_HOST = "127.0.0.1"
+DEFAULT_HOST = socket.gethostbyname(socket.gethostname())
 
 
 #   -------------------------------------------------------
