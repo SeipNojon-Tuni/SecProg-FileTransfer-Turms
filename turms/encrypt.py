@@ -72,7 +72,7 @@ class Encryptor:
 
         # According to python documentation unpredictable
         # enough to be suitable for cryptography.
-        # https://docs.python.org/3/library/os.html
+        # https://docs.python.org/3/library/os.htmlx
         self.__salt = urandom(32)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -82,8 +82,8 @@ class Encryptor:
             # which is a very popular and a framework also widely used in production.
             # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
             # We can expect for our server couple of connections at a time, so we can
-            # use triple the iterations easily without major performance drop.
-            iterations=1200000
+            # use 10 times the iterations easily without major performance drop.
+            iterations=3900000
         )
         key = kdf.derive(bpass)
 
@@ -144,7 +144,7 @@ class Decryptor:
             # 390000 iterations of SHA256 is used by Django framework (noted in cryptography's example),
             # which is a very popular and a framework also widely used in production.
             # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
-            iterations=1200000,
+            iterations=3900000,
         )
         key = kdf.derive(bpass)
 
