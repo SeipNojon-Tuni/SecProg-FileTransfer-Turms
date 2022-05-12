@@ -3,8 +3,7 @@
 #   to server requests from single user connection.
 #
 #   Sipi Ylä-Nojonen, 2022
-
-CHUNK_SIZE = 1024
+from typing import Optional, Awaitable
 
 import pathvalidate
 from tornado import web, iostream, gen
@@ -12,13 +11,14 @@ import tornado.httputil as tutil
 import base64
 from cryptography.hazmat.primitives import padding
 
-
 import encrypt
 import server
+
+CHUNK_SIZE = 1024
+
 from logger import TurmsLogger as Logger
 from server_file_handler import ServerFileHandler as Sfh
-from config import Config as cfg
-
+from config import Config as Cfg
 
 
 class TurmsRequestHandler(web.RequestHandler):
@@ -92,6 +92,10 @@ class TurmsRequestHandler(web.RequestHandler):
         self.flush()
         self.finish()
 
+    def data_received(self, chunk: bytes):
+        """ Streamed requests not supported """
+        self.bad_request()
+
 
 # ---------------------------------------------------
 # Path specific request handlers for different request paths
@@ -102,6 +106,7 @@ class IndexRequestHandler(TurmsRequestHandler):
 
     def head(self):
         """ Create response for 'HEAD' method request for path '/' """
+        self.set_cookie("_xsrf", self.xsrf_token)
         self.ok()
 
     def get(self):
@@ -113,7 +118,7 @@ class IndexRequestHandler(TurmsRequestHandler):
         self.set_cookie("_xsrf", self.xsrf_token)
 
         self.ok()
-        self.write("The index.")
+        self.write("")
         self.flush()
         self.finish()
 
@@ -147,7 +152,7 @@ class FileRequestHandler(TurmsRequestHandler):
 
     def prepare(self):
         """ Prepare before handling request. Create encryption device where necessary. """
-        self.__allow_unencrypted = cfg.get_bool("TURMS", "AllowUnencrypted")
+        self.__allow_unencrypted = Cfg.get_bool("TURMS", "AllowUnencrypted", False)
 
         # Create encryptor for this user request.
         # If unencrypted transfer is not allowed and no password is defined raises ValueError.
@@ -156,24 +161,81 @@ class FileRequestHandler(TurmsRequestHandler):
             return
         except ValueError as e:
             self.internal_server_error()
-            Logger.error(e)
+            Logger.error(e, "turms.server")
             return
 
     def head(self):
         """ Create response for 'HEAD' method request in path '/download/*.*' """
-        self.ok()
-
-    def get(self):
-        """ Create response for 'GET' method request in path '/download/*.*' """
         try:
-            # File name should be the last part of the url.
-            filename = self.request.path.split("/")[-1]
+            # Split to: "" ,  "download", [path to file]
+            # If <path to file> is not file name refuse download since we only serve files
+            # inside the root content directory. List should only have one item, the filename.
+            splitpath = self.request.path.split("/")
+            splitpath.pop(0)    # Empty string created by split before leading dash
+            splitpath.pop(0)    # "download"
+            if len(splitpath) > 1:
+                self.bad_request()
+                return
+
+            # File name could be fetched as the last part of url directly without
+            # above checks but since we want to return error for malformed request if path
+            # is not filename instead of "404, page not found"
+            filename = splitpath[-1]
 
             # ServerFileHandler does sanitation and filename validation internally.
             # Raises pathvalidate.ValidationError if validation fails.
             file, size = Sfh.get_file_object(filename)
 
-            # User requested file is not available on server
+            if file is None:
+                self.not_found()
+                return
+            else:
+                checksum = encrypt.get_checksum(file.read())
+
+                # Not needed after this in HEAD response.
+                file.close()
+
+                # Set encryption headers
+                if self.__allow_unencrypted and not self.__encryptor:
+                    self.add_header("encrypted", "False")
+                else:
+                    self.add_header("encrypted", "True")
+
+                # No point in returning salt and initialization vector
+                # in HEAD response when they change for each response.
+                self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
+                self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
+                self.add_header("checksum", base64.urlsafe_b64encode(checksum))
+                self.ok()
+                self.finish()
+
+        except pathvalidate.ValidationError:
+            # Respond with 'Bad request' if filename is
+            # malformed or not a valid filename.
+            self.bad_request()
+
+    def get(self):
+        """ Create response for 'GET' method request in path '/download/*.*' """
+        try:
+            # Split to: "" ,  "download", [path to file]
+            # If <path to file> is not file name refuse download since we only serve files
+            # inside the root content directory. List should only have one item, the filename.
+            splitpath = self.request.path.split("/")
+            splitpath.pop(0)    # Empty string created by split before leading dash
+            splitpath.pop(0)    # "download"
+            if len(splitpath) > 1:
+                self.bad_request()
+                return
+
+            # File name could be fetched as the last part of url directly without
+            # above checks but since we want to return error for malformed request if path
+            # is not filename instead of "404, page not found"
+            filename = splitpath[-1]
+
+            # ServerFileHandler does sanitation and filename validation internally.
+            # Raises pathvalidate.ValidationError if validation fails.
+            file, size = Sfh.get_file_object(filename)
+
             if file is None:
                 self.not_found()
                 return
@@ -183,7 +245,6 @@ class FileRequestHandler(TurmsRequestHandler):
                 checksum = encrypt.get_checksum(file.read())
                 file.seek(0, 0)
 
-                # Set encryption headers
                 if self.__allow_unencrypted and not self.__encryptor:
                     self.add_header("encrypted", "False")
                 else:
@@ -192,6 +253,7 @@ class FileRequestHandler(TurmsRequestHandler):
                 self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
                 self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
                 self.add_header("checksum", base64.urlsafe_b64encode(checksum))
+                self.add_header("filesize", str(size))
 
                 # Data remains to be read
                 while size - read > 0:
@@ -211,11 +273,16 @@ class FileRequestHandler(TurmsRequestHandler):
                         # Pad undersized chunk for AES encryption.
                         # Based on padding module documentation tutorial.
                         # https://cryptography.io/en/latest/hazmat/primitives/padding/
-                        chk_size = int(cfg.get_turms_val("ChunkSize", CHUNK_SIZE))
+                        chk_size = int(Cfg.get_turms_val("ChunkSize", CHUNK_SIZE))
                         pad = padding.PKCS7(chk_size).padder()
                         chunk = pad.update(chunk) + pad.finalize()
                         read += rsize
                     try:
+                        # There should be encryptor when encryption is required.
+                        if not self.__encryptor and not self.__allow_unencrypted:
+                            Logger.error("Server", "turms.server")
+                            self.internal_server_error()
+
                         # Each chunk will be sent to client on flush.
                         if self.__allow_unencrypted:
                             final = chunk
@@ -226,12 +293,13 @@ class FileRequestHandler(TurmsRequestHandler):
                         self.ok()
                         self.write(final)
                         self.flush()
-                    except iostream.StreamClosedError:
+                    except iostream.StreamClosedError as e:
+                        Logger.warning(e, "turms.server")
                         break
                     finally:
                         del chunk
-                        # Sleep not block and to let other tasks run
-                        gen.sleep(0.000000001)
+                        # Sleep to not block and to let other tasks run
+                        gen.sleep(0.000001)
                 self.finish()
                 file.close()
                 return
@@ -240,5 +308,3 @@ class FileRequestHandler(TurmsRequestHandler):
             # Respond with 'Bad request' if filename is
             # malformed or not a valid filename.
             self.bad_request()
-
-

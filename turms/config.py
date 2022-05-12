@@ -14,22 +14,23 @@ class Config:
     user configs from file.
     """
 
-    DEFAULT_CONFIG = {"TURMS": {"Ip-Address" : socket.gethostbyname(socket.gethostname()),
-                                 "Port" : "16580",
-                                 "SSLPort" : "16443",
-                                 "Xsrf" : "True",
-                                 "AllowUnencrypted" : "False",
-                                 "UseTLS": "True",
-                                 "CertPath" : "./keys",
-                                 "AutoRemoveDamagedFile": "True"
+    DEFAULT_CONFIG = {"TURMS": {
+                         "Ip-Address": socket.gethostbyname(socket.gethostname()),
+                         "Port": "16580",
+                         "SSLPort": "16443",
+                         "Xsrf": "True",
+                         "AllowUnencrypted": "False",
+                         "UseTLS": "True",
+                         "CertPath": "./keys",
+                         "AutoRemoveDamagedFile": "True"
                                  }}
 
-    DEFAULT_CERT = { "ORGANIZATION": {
-                        "CountryName" : "YY",
-                        "ProvinceName ": "Province",
-                        "LocaleName" : "Locale",
-                        "OrganizationName" : "Org",
-                        "CommonName" : "127.0.0.1"
+    DEFAULT_CERT = {"ORGANIZATION": {
+                        "CountryName": "YY",
+                        "ProvinceName": "Province",
+                        "LocaleName": "Locale",
+                        "OrganizationName": "Org",
+                        "CommonName": "127.0.0.1"
                         }
                     }
 
@@ -67,10 +68,15 @@ class Config:
         return cfg[sect].get(name, fallb)
 
     @staticmethod
-    def get_bool(sect, name):
-        """ Evaluate config value as boolean. """
+    def get_bool(sect, name, fallb: bool):
+        """ Evaluate config value as boolean.
+
+        :param sect:    Section name corresponding to python configparser / Windows ini format.
+        :param name:    Config field name.
+        :param fallb:   Fallback value to use if configuration is not found.
+        """
         cfg = Config.get_config()
-        return cfg[sect].getboolean(name)
+        return cfg[sect].getboolean(name, fallback=fallb)
 
     @staticmethod
     def get_turms_val(name, fallb):
@@ -85,13 +91,11 @@ class Config:
     @staticmethod
     def get_organization_info():
         """ Get organization info for CSR """
-        data = {}
+        data = {"COUNTRY_NAME": Config.get_val("ORGANIZATION", "CountryName", ""),
+                "PROVINCE_NAME": Config.get_val("ORGANIZATION", "ProvinceName", ""),
+                "LOCALE_NAME": Config.get_val("ORGANIZATION", "LocaleName", ""),
+                "ORGANIZATION_NAME": Config.get_val("ORGANIZATION", "OrganizationName", ""),
+                "COMMON_NAME": Config.get_val("ORGANIZATION", "CommonName", "")}
 
         # Get data fields for certificate to authenticate server
-        data["COUNTRY_NAME"] = Config.get_val("ORGANIZATION", "CountryName", "")
-        data["PROVINCE_NAME"] = Config.get_val("ORGANIZATION", "ProvinceName", "")
-        data["LOCALE_NAME"] = Config.get_val("ORGANIZATION", "LocaleName", "")
-        data["ORGANIZATION_NAME"] = Config.get_val("ORGANIZATION", "OrganizationName", "")
-        data["COMMON_NAME"] = Config.get_val("ORGANIZATION", "CommonName", "")
-
         return data

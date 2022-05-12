@@ -4,13 +4,13 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
-import downloader
+from downloader import Downloader
 import server
 import connection_handler
 import view
 from logger import TurmsLogger as Logger
-import asyncio
 from pathvalidate import validate_filename, sanitize_filename
+
 
 class Controller:
 
@@ -20,19 +20,19 @@ class Controller:
     __conn_handler = None
     __server = None
 
-    def __init__(self, widgets, window, view):
+    def __init__(self, widgets, window, view_):
         """:type Controller: Turms Application controller class
         that loosely follows controller functionality of MVC-pattern
 
         :param widgets  Dictionary of Application widgets and fields to read input from
                         or pass to View for GUI handling and manipulation
         :param window
-        :param view     MVC type View object responsible for updating GUI.
+        :param view_    MVC type View object responsible for updating GUI.
         """
 
         self.__widgets = widgets
         self.__window = window
-        self.__view = view
+        self.__view = view_
         self.__conn_handler = connection_handler.ConnectionHandler()
         return
 
@@ -58,10 +58,9 @@ class Controller:
 
         :param event: Tkinter event fired when action to call function was taken
         """
-        success = False
 
         if self.__conn_handler:
-            success = self.__conn_handler.disconnect_from_server(self)
+            self.__conn_handler.disconnect_from_server(self)
 
     async def fetch_file_from_server(self, event):
         """ Request to fetch specified file from server """
@@ -88,12 +87,12 @@ class Controller:
 
             # Downloader class sanitizes and validates download destination internally.
             #   Raises pathvalidate.ValidationError if validation is not successful.
-            download = downloader.Downloader(location)
+            download = Downloader(location)
 
             await self.__conn_handler.fetch_file_from_server(san_name, download, self)
         # User clicked on non-existent item in tree.
-        except IndexError:
-            Logger.warning("Unknown item.")
+        except IndexError as e:
+            Logger.warning(e)
             return
 
         # except pathvalidate.ValidationError:
@@ -162,5 +161,5 @@ class Controller:
 
     @staticmethod
     def prompt_password():
+        """ Delegate for View to prompt user for password """
         return view.View.prompt_password()
-

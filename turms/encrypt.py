@@ -32,7 +32,7 @@ class KeyHolder:
 
     def __init__(self, password):
         # Unencrypted file transfer not allowed but is attempted
-        if not cfg.get_bool("TURMS", "AllowUnencrypted") and len(password) == 0:
+        if not cfg.get_bool("TURMS", "AllowUnencrypted", False) and len(password) == 0:
             raise ValueError("Unencrypted file transfer is not allowed, but no password is defined.")
 
         """ Class to hold user password and create new encryption devices derived from it """
@@ -42,9 +42,15 @@ class KeyHolder:
         """ Create new Encryptor with password """
 
         # Unencrypted file transfer not allowed but is attempted
-        if not cfg.get_bool("TURMS", "AllowUnencrypted") and (len(self.__pass) == 0):
+        if not cfg.get_bool("TURMS", "AllowUnencrypted", False) and (len(self.__pass) == 0):
             raise ValueError("Unencrypted file transfer is not allowed, but no password is defined.")
-        return Encryptor(self.__pass)
+
+        # Don't create encryption device if unencrypted transfer is allowed and there
+        # is no password defined.
+        elif len(self.__pass) == 0:
+            return None
+        else:
+            return Encryptor(self.__pass)
 
 
 class Encryptor:
@@ -72,7 +78,12 @@ class Encryptor:
             algorithm=hashes.SHA256(),
             length=32,
             salt=self.__salt,
-            iterations=390000
+            # 390000 iterations of SHA256 is used by Django framework (noted in cryptography's example),
+            # which is a very popular and a framework also widely used in production.
+            # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
+            # We can expect for our server couple of connections at a time, so we can
+            # use triple the iterations easily without major performance drop.
+            iterations=7000000
         )
         key = kdf.derive(bpass)
 
@@ -121,7 +132,7 @@ class Decryptor:
         :param iv:         Initialization vector supplied by encryptor.
         """
 
-        # Create encryption key based on user input password.
+        # Create decryption key based on user input password as known salt.
         # Based on cryptography module documentation and example.
         # https://cryptography.io/en/latest/fernet/#using-passwords-with-fernet
         bpass = bytes(password, "utf-8")
@@ -130,7 +141,10 @@ class Decryptor:
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
-            iterations=390000,
+            # 390000 iterations of SHA256 is used by Django framework (noted in cryptography's example),
+            # which is a very popular and a framework also widely used in production.
+            # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
+            iterations=7000000,
         )
         key = kdf.derive(bpass)
 

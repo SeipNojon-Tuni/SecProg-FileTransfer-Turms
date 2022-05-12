@@ -9,11 +9,10 @@ import tkinter.ttk as ttk
 import asyncio
 
 import console_widget
-import controller as ctrl
+from controller import Controller
 from logger import TurmsLogger as Logger
-import server
 import view
-from config import Config as cfg
+from config import Config as Cfg
 
 
 def call_async(target):
@@ -57,13 +56,13 @@ class App:
         """
 
         # Ensure that config file exists
-        cfg.create_config()
+        Cfg.create_config()
 
         # Create tkinter window for app and
         # controller object for input handling.
         self.__window = self.create_window()
         self.__view = view.View(self.__window, self.__widgets)
-        self.__controller = ctrl.Controller(self.__widgets, self.__window, self.__view)
+        self.__controller = Controller(self.__widgets, self.__window, self.__view)
 
         # Create loggers
         self.__gui_pipeline = self.__view.get_console(self.__widgets["console"])

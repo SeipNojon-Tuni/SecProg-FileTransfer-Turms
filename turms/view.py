@@ -18,14 +18,13 @@ from logger import TurmsLogger as Logger
 from downloader import DEFAULT_DL_DIRECTORY
 
 class ConsoleQueue:
-    def __init__(self, queue):
+    def __init__(self, queue_):
         """ Initiate with specified widget for print output """
-        self._target = queue
+        self._target = queue_
 
     def write(self, string):
         """ Write function for redirectiong sys.stdout writes to Tkinter application"""
         if self._target:
-            #self._target.insert_text(string)
             self._target.put(string)
 
     def flush(self):
@@ -61,7 +60,6 @@ class ConsoleWriter:
 
             except Empty:
                 await asyncio.sleep(0.2)              # Return other tasks when queue is empty
-
 
     def queue(self):
         """ Return queue for log output """
@@ -110,6 +108,7 @@ class View(object):
         """ Change GUI to show 'server running' state """
         self.__widgets["serverstop"]["state"] = tk.NORMAL
         self.__widgets["serverstart"]["state"] = tk.DISABLED
+
     def state_to_server_stopped(self):
         """ Change GUI to show 'server not running' state """
         self.__widgets["serverstart"]["state"] = tk.NORMAL
@@ -154,7 +153,9 @@ class View(object):
             splitname.pop(-1)
             name = "".join(splitname)
 
-        return tk.filedialog.asksaveasfilename(defaultextension=extension, initialdir=DEFAULT_DL_DIRECTORY, initialfile=name)
+        return tk.filedialog.asksaveasfilename(defaultextension=extension,
+                                               initialdir=DEFAULT_DL_DIRECTORY,
+                                               initialfile=name)
 
     @staticmethod
     def prompt_password():

@@ -3,13 +3,14 @@
 #   and delegating answers
 #
 #   Sipi Ylä-Nojonen, 2022
-import sys
 from ipaddress import ip_address
 import base64
 import asyncio
 
+import pathvalidate
+
 from logger import TurmsLogger as Logger
-from config import Config as cfg
+from config import Config as Cfg
 
 import tornado.simple_httpclient
 import tornado.httpclient
@@ -30,8 +31,9 @@ class ConnectionHandler:
         """
         Attempt to create a connection to specified server.
 
-        :param ipaddr:  Address of the server. Should be valid ip-address.
-        :param port:    Port to attempt to send the request.
+        :param ipaddr:     Address of the server. Should be valid ip-address.
+        :param port:       Port to attempt to send the request.
+        :param controller: Controller of which methods to use for callback values
         :return:        Whether connection was successful.
         """
 
@@ -41,7 +43,7 @@ class ConnectionHandler:
             return
 
         try:
-            ip = ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
+            ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
             portint = int(port)
         except ValueError:
             Logger.warning("Invalid ip-address or port given.")
@@ -94,14 +96,14 @@ class ConnectionHandler:
         """
         Make a GET request to the server
 
-        :param path: url path to fetch.
-        :return:     Response got from the server
+        :param path:  url path to fetch.
+        :return:      Response got from the server
         """
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, path)
 
             # Don't validate certificate since server certificate is self-signed and validation will fail.
-            request = tornado.httpclient.HTTPRequest(url, method="GET", validate_cert=False)
+            request = tornado.httpclient.HTTPRequest(url, "GET", validate_cert=False)
             response = await self.__session.fetch(request)
             return response
         return None
@@ -137,7 +139,7 @@ class ConnectionHandler:
                 Logger.error("Could not parse response.")
                 return False
 
-            Logger.info("Response: %s %s " % ( str(response.code), response.reason) )
+            Logger.info("Response: %s %s " % (str(response.code), response.reason))
 
             filenames = json.loads(response.body)
 
@@ -150,21 +152,19 @@ class ConnectionHandler:
                 try:
                     validate_filename(sname)
                     san_names.append(sname)
-                except:
+                except pathvalidate.ValidationError:
                     Logger.warning("Ignoring invalid filename %s with index %i in response."
-                                   % (sname, filenames.index(name)) )
+                                   % (sname, filenames.index(name)))
 
             controller.update_filetree(san_names)
             return True
 
-        except tornado.httpclient.HTTPClientError:
-            type, value, traceback = sys.exc_info()
-            Logger.warning("%s" % value)
+        except tornado.httpclient.HTTPClientError as e:
+            Logger.warning("%s" % e)
             return False
 
-        except OSError:
-            type, value, trace = sys.exc_info()
-            Logger.error(value)
+        except OSError as e:
+            Logger.error("%s" % e)
             return False
 
     async def fetch_file_from_server(self, filename, downloader, controller):
@@ -178,13 +178,16 @@ class ConnectionHandler:
             salt = b""
             iv = b""
             checksum = b""
+            filesize = 0
 
             try:
                 checksum = base64.urlsafe_b64decode(response.headers["checksum"])
                 salt = base64.urlsafe_b64decode(response.headers["salt"])
                 iv = base64.urlsafe_b64decode(response.headers["iv"])
+                filesize = int(response.headers["filesize"])
             except KeyError:
                 Logger.error("Error parsing response headers. Header not present.")
+                return
 
             downloader.create_decryptor(controller.prompt_password(), salt, iv)
 
@@ -208,15 +211,12 @@ class ConnectionHandler:
                 Logger.info("File integrity check passed.")
             else:
                 Logger.warning("File integrity check failed. File might be damaged.")
-                if cfg.get_bool("TURMS", "AutoRemoveDamagedFile"):
+                if Cfg.get_bool("TURMS", "AutoRemoveDamagedFile", False):
                     downloader.remove_file()
 
-        except tornado.httpclient.HTTPClientError:
-            t, value, traceback = sys.exc_info()
-            Logger.warning("%s" % value)
+        except tornado.httpclient.HTTPClientError as e:
+            Logger.warning("%s" % e)
             return False
 
         except ConnectionRefusedError:
             Logger.error("Server refused connection.")
-
-

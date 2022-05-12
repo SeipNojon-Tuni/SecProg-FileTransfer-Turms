@@ -4,17 +4,18 @@
 #
 #   Sipi Ylä-Nojonen, 2022
 
+
 DEFAULT_DL_DIRECTORY = "./downloads"
 
-import encrypt
-import request_handler
+from request_handler import CHUNK_SIZE
 from logger import TurmsLogger as Logger
 from config import Config as cfg
 from os.path import exists
 from os import remove
 
-from pathvalidate import sanitize_filepath, validate_filepath
+import encrypt
 import io
+from pathvalidate import sanitize_filepath, validate_filepath
 from cryptography.hazmat.primitives import padding
 
 
@@ -79,7 +80,7 @@ class Downloader:
     def create_decryptor(self, password, salt, iv):
         """ Create decryptor object for decrypting data.
 
-        :param decryptor:   Decryptor object.
+        :param password:    Password to derive decryption key.
         :param salt:        Salt used for encryption.
         :param iv:          Initialization vector for decryption.
         """
@@ -106,7 +107,7 @@ class Downloader:
         written = 0
         f = io.BytesIO(data)
         chunk = None
-        chk_size = int(cfg.get_turms_val("ChunkSize", request_handler.CHUNK_SIZE))
+        chk_size = int(cfg.get_turms_val("ChunkSize", CHUNK_SIZE))
 
         if not self.__decryptor:
             Logger.warning("No decryptor instance created. Cannot decrypt data.")
@@ -114,7 +115,7 @@ class Downloader:
 
         while size - written > chk_size:
             # While size greater than one chunk size remains to be
-            chunk = f.read(request_handler.CHUNK_SIZE)
+            chunk = f.read(CHUNK_SIZE)
             chunk = self.__decryptor.decrypt(chunk)
             written += len(chunk)
             self.write_to_file(chunk)
@@ -159,4 +160,3 @@ class Downloader:
         if exists(self.__path):
             remove(self.__path)
         return
-

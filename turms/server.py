@@ -3,13 +3,15 @@
 #   handlers for serving user requests.
 #
 #   Sipi Ylä-Nojonen, 2022
+
+
 import socket
 
 import encrypt
 import request_handler as rh
 from logger import TurmsLogger as Logger
-from config import Config as cfg
-import view
+from config import Config as Cfg
+from view import View
 
 import tornado.ioloop
 import tornado.web
@@ -53,9 +55,9 @@ class TurmsApp(tornado.web.Application):
         """
 
         # Get values from config or use defaults in case not present.
-        self.__port = int(cfg.get_turms_val("Port", DEFAULT_PORT))
-        self.__sslport = int(cfg.get_turms_val("SSLPort", DEFAULT_SSL_PORT))
-        self.__host = cfg.get_turms_val("Ip-Address", DEFAULT_HOST)
+        self.__port = int(Cfg.get_turms_val("Port", DEFAULT_PORT))
+        self.__sslport = int(Cfg.get_turms_val("SSLPort", DEFAULT_SSL_PORT))
+        self.__host = Cfg.get_turms_val("Ip-Address", DEFAULT_HOST)
 
         # Match host name with defined one to protect against DNS rebinding attacks.
         # This is the tornado.routing format version.
@@ -74,7 +76,12 @@ class TurmsApp(tornado.web.Application):
         }
 
         # Create encryption device factory
-        self.__keyhold = encrypt.KeyHolder(view.View.prompt_password())
+        if not Cfg.get_bool("TURMS", "AllowUnencrypted", False):
+            self.__keyhold = encrypt.KeyHolder(View.prompt_password())
+        # For unencrypted file transferring generate factory with
+        # empty password. Rest is handled internally.
+        else:
+            self.__keyhold = encrypt.KeyHolder("")
 
         super().__init__(handlers, default_host=None, **settings)
 
@@ -88,7 +95,7 @@ class TurmsApp(tornado.web.Application):
         """
 
         # Set up TLS and start HTTPS server
-        if cfg.get_bool("TURMS", "UseTLS"):
+        if Cfg.get_bool("TURMS", "UseTLS", True):
             # Load up SSL context to use for authenticating server
             # It still falls upon user to accept this authentication
             # and since we don't authenticate user and thus anyone
