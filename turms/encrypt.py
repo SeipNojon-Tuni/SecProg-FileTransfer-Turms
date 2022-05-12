@@ -82,8 +82,8 @@ class Encryptor:
             # which is a very popular and a framework also widely used in production.
             # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
             # We can expect for our server couple of connections at a time, so we can
-            # use double the iterations easily without major performance drop.
-            iterations=7000000
+            # use triple the iterations easily without major performance drop.
+            iterations=1200000
         )
         key = kdf.derive(bpass)
 
@@ -144,7 +144,7 @@ class Decryptor:
             # 390000 iterations of SHA256 is used by Django framework (noted in cryptography's example),
             # which is a very popular and a framework also widely used in production.
             # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
-            iterations=7000000,
+            iterations=1200000,
         )
         key = kdf.derive(bpass)
 
