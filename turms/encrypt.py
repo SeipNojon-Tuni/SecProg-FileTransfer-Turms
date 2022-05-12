@@ -82,7 +82,7 @@ class Encryptor:
             # which is a very popular and a framework also widely used in production.
             # https://github.com/django/django/blob/main/django/contrib/auth/hashers.py
             # We can expect for our server couple of connections at a time, so we can
-            # use triple the iterations easily without major performance drop.
+            # use double the iterations easily without major performance drop.
             iterations=7000000
         )
         key = kdf.derive(bpass)
