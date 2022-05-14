@@ -95,6 +95,7 @@ class Encryptor:
         # is cryptosafe.
         self.__iv = urandom(16)
 
+        # TODO: CBC2, CBC3? Normal CBC vulnerable
         cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
         self.__encryptor = cipher.encryptor()
 
@@ -167,7 +168,7 @@ class Decryptor:
         """ Finalize decryptor context """
         return self.__decryptor.finalize()
 
-
+# TODO: OpenPGP certificate?
 class KeyGen:
 
     @staticmethod
