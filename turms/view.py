@@ -158,11 +158,6 @@ class View(object):
                                                initialfile=name)
 
     @staticmethod
-    def prompt_password():
-        """ Prompt user for password to use."""
-        return View.prompt_input("Please enter server password.", "*")
-
-    @staticmethod
     def prompt_input(msg, show=""):
         """ Prompt user for string input.
 

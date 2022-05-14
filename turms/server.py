@@ -77,7 +77,7 @@ class TurmsApp(tornado.web.Application):
 
         # Create encryption device factory
         if not Cfg.get_bool("TURMS", "AllowUnencrypted", False):
-            self.__keyhold = encrypt.KeyHolder(View.prompt_password())
+            self.__keyhold = encrypt.KeyHolder(View.prompt_input("Please enter encryption password.", "*"))
         # For unencrypted file transferring generate factory with
         # empty password. Rest is handled internally.
         else:

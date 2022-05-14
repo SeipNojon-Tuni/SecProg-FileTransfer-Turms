@@ -22,6 +22,7 @@ from cryptography.hazmat.primitives import padding
 class Downloader:
     __path = None
     __decryptor = None
+    __filesize = 0
 
     def __init__(self, path):
         self.assign_file(path)
@@ -92,8 +93,13 @@ class Downloader:
         self.__decryptor = encrypt.Decryptor(password, salt, iv)
         return
 
+    def set_filesize(self, size):
+        """ Set expected file size for downloaded content. """
+        self.__filesize = size
+        return
+
     def decrypt_and_write(self, data):
-        """ Create decryptor and decrypt file content, then save it to file.
+        """ Decrypt file content, then save it to file.
 
         :param data:    Data to write to file.
         """
@@ -136,6 +142,12 @@ class Downloader:
         self.write_to_file(chunk)
         self.__decryptor = None
         return
+
+    def chunk_decrypt_and_write(self, data):
+        """ Decrypt and write single chunk of data from received response body.
+        Should be used for streaming callback function for tornado.httpclient.HTTPRequest."""
+        pass
+
 
     def compare_checksum(self, checksum):
         """ Compares given checksum to file in path defined for this instance

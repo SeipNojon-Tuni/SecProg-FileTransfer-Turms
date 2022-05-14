@@ -16,6 +16,7 @@ import tornado.simple_httpclient
 import tornado.httpclient
 import json
 from pathvalidate import sanitize_filename, validate_filename
+from view import View
 
 
 class ConnectionHandler:
@@ -90,20 +91,27 @@ class ConnectionHandler:
         controller.update_filetree([])  # Empty filetree in GUI when not connected
         controller.state_to_disconnect()
 
+        Logger.info("Disconnected from server.")
+
         return True
 
-    async def get_request(self, path="/"):
+    async def get_request(self, path="/", header_cb = None, streaming_cb = None):
         """
         Make a GET request to the server
 
-        :param path:  url path to fetch.
+        :param path:            url path to fetch.
+        :param header_cb:       Header callback function for tornado.httpclient.HTTPRequest
+        :param streaming_cb:    Streaming callback function for tornado.httpclient.HTTPRequest
         :return:      Response got from the server
         """
         if self.__session and self.__server_url:
             url = "%s%s" % (self.__server_url, path)
 
             # Don't validate certificate since server certificate is self-signed and validation will fail.
-            request = tornado.httpclient.HTTPRequest(url, "GET", validate_cert=False)
+            request = tornado.httpclient.HTTPRequest(url, "GET",
+                                                     validate_cert=False,
+                                                     header_callback=header_cb,
+                                                     streaming_callback=streaming_cb)
             response = await self.__session.fetch(request)
             return response
         return None
@@ -123,6 +131,8 @@ class ConnectionHandler:
                 self.__cookies = response.headers["Set-Cookie"]
             except KeyError:
                 self.__cookies = None
+
+            Logger.info("Connected to server %s" % self.__server_url)
 
             return response
         return
@@ -173,7 +183,7 @@ class ConnectionHandler:
         try:
             dl_url = "/download/%s" % filename
 
-            response = await self.get_request(dl_url)
+            response = await self.get_request(dl_url, self.prepare_downloader())
 
             salt = b""
             iv = b""
@@ -189,7 +199,7 @@ class ConnectionHandler:
                 Logger.error("Error parsing response headers. Header not present.")
                 return
 
-            downloader.create_decryptor(controller.prompt_password(), salt, iv)
+            downloader.create_decryptor(View.prompt_input("Please enter decryption password.", "*"), salt, iv)
 
             if not response:
                 Logger.error("Could not parse response.")
@@ -218,5 +228,18 @@ class ConnectionHandler:
             Logger.warning("%s" % e)
             return False
 
+        except ValueError as e:
+            if str(e) == "Invalid padding bytes.":
+                Logger.error("Wrong decryption password.")
+            else:
+                Logger.error(e)
+            return
+
+
         except ConnectionRefusedError:
             Logger.error("Server refused connection.")
+
+    def prepare_downloader(self, *args):
+        """ Header callback for tornado.httpclient.HTTPRequest to
+        parse headers needed for file download"""
+        print(args)
