@@ -67,27 +67,32 @@ class TurmsRequestHandler(web.RequestHandler):
 
     def bad_request(self):
         """ Construct basic response with status '400 Bad request' """
+        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 400, tutil.responses[400]))
         self.set_status(400, tutil.responses[400])
         self.flush()
         self.finish()
 
     def forbidden(self):
         """ Construct basic response with status '405 Forbidden' """
+        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 405, tutil.responses[405]))
         self.set_status(405, tutil.responses[405])
         self.flush()
         self.finish()
 
     def not_found(self):
         """ Construct basic response with status '404 Not found' """
+        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 404, tutil.responses[404]))
         self.set_status(404, tutil.responses[404])
         self.flush()
         self.finish()
 
     def ok(self):
         """ Construct basic response with status '200 OK' """
+        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 200, tutil.responses[200]))
         self.set_status(200, tutil.responses[200])
 
     def internal_server_error(self):
+        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 500, tutil.responses[500]))
         self.set_status(500, tutil.responses[500])
         self.flush()
         self.finish()
