@@ -3,13 +3,11 @@
 #   to server requests from single user connection.
 #
 #   Sipi Ylä-Nojonen, 2022
-from typing import Optional, Awaitable
 
 import pathvalidate
 from tornado import web, iostream, gen
 import tornado.httputil as tutil
 import base64
-from cryptography.hazmat.primitives import padding
 
 import encrypt
 import server

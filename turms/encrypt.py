@@ -167,7 +167,7 @@ class Decryptor:
         """ Finalize decryptor context """
         return self.__decryptor.finalize()
 
-# TODO: OpenPGP certificate?
+
 class KeyGen:
 
     @staticmethod
@@ -184,11 +184,9 @@ class KeyGen:
 
         save_path = cfg.get_turms_val("CertPath", "./keys")
 
-        ctx.load_cert_chain(
-            certfile = path.join(save_path, "certificate.pem"),
-            keyfile = path.join(save_path, "key.pem"),
-            password = password
-        )
+        ctx.load_cert_chain(certfile = path.join(save_path, "certificate.pem"),
+                            keyfile = path.join(save_path, "key.pem"),
+                            password = password)
         return ctx
 
     @staticmethod
@@ -216,11 +214,12 @@ class KeyGen:
         )
 
         with open(key_path, "wb") as f:
-            f.write(key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.BestAvailableEncryption(password)
-            ))
+            f.write(key.private_bytes(encoding=serialization.Encoding.PEM,
+                                      format=serialization.PrivateFormat.TraditionalOpenSSL,
+                                      encryption_algorithm=serialization.BestAvailableEncryption(password)))
+
+
+
 
         # Fetch information to include in certificate
         certdata = cfg.get_organization_info()
