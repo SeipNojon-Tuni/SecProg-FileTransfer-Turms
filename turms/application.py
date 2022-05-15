@@ -73,7 +73,7 @@ class App:
         call_async(self.__view.start_listener())
 
         Logger.create_logger()
-        Logger.info("--- Application initialization finished. ---")
+        Logger.info("Application initialization finished.")
         Logger.set_log_level(logging.DEBUG)
 
         self.__run = True
