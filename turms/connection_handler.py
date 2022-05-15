@@ -14,6 +14,7 @@ from config import Config as Cfg
 
 import tornado.simple_httpclient
 import tornado.httpclient
+from tornado.httputil import HTTPHeaders
 import json
 from pathvalidate import sanitize_filename, validate_filename
 from view import View
@@ -24,6 +25,8 @@ class ConnectionHandler:
     __server_url = None
     __cookies = None
     __decryptor = None
+    __downloader = None
+    __headers = None
 
     def __init__(self):
         pass
@@ -32,16 +35,16 @@ class ConnectionHandler:
         """
         Attempt to create a connection to specified server.
 
-        :param ipaddr:     Address of the server. Should be valid ip-address.
-        :param port:       Port to attempt to send the request.
-        :param controller: Controller of which methods to use for callback values
-        :return:        Whether connection was successful.
+        :param ipaddr:      Address of the server. Should be valid ip-address.
+        :param port:        Port to attempt to send the request.
+        :param controller:  Controller of which methods to use for callback values
+        :return:            Whether connection was successful.
         """
 
         # Allow connection only when no former connection is active.
         if self.__session or self.__server_url:
             Logger.info("Already connected to a server. Please terminate connection first.")
-            return
+            return False
 
         try:
             ip_address(ipaddr)                     # Raises ValueError if not valid IPv4 or IPv6 address
@@ -84,18 +87,16 @@ class ConnectionHandler:
         if self.__session:
             self.__session.close()
             self.__session = None
+            Logger.info("Disconnected from server.")
 
         self.__decryptor = None
         self.__server_url = None
 
-        controller.update_filetree([])  # Empty filetree in GUI when not connected
+        controller.update_filetree([])  # Empty filetree in GUI when not "connected"
         controller.state_to_disconnect()
-
-        Logger.info("Disconnected from server.")
-
         return True
 
-    async def get_request(self, path="/", header_cb = None, streaming_cb = None):
+    async def get_request(self, path="/", timeout=10, header_cb = None, streaming_cb = None):
         """
         Make a GET request to the server
 
@@ -110,6 +111,7 @@ class ConnectionHandler:
             # Don't validate certificate since server certificate is self-signed and validation will fail.
             request = tornado.httpclient.HTTPRequest(url, "GET",
                                                      validate_cert=False,
+                                                     request_timeout=timeout,
                                                      header_callback=header_cb,
                                                      streaming_callback=streaming_cb)
             response = await self.__session.fetch(request)
@@ -182,47 +184,39 @@ class ConnectionHandler:
 
         try:
             dl_url = "/download/%s" % filename
+            self.__downloader = downloader
+            self.__downloader.decrypt_param("password", View.prompt_input("Please enter decryption password.", "*"))
+            self.__headers = HTTPHeaders()
 
-            response = await self.get_request(dl_url, self.prepare_downloader())
+            # Set long enough timeout so that connection won't be interrupted if file download takes a while.
+            response = await self.get_request(dl_url, 120, self.prepare_downloader, self.delegate_download)
 
-            salt = b""
-            iv = b""
-            checksum = b""
-            filesize = 0
-
-            try:
-                checksum = base64.urlsafe_b64decode(response.headers["checksum"])
-                salt = base64.urlsafe_b64decode(response.headers["salt"])
-                iv = base64.urlsafe_b64decode(response.headers["iv"])
-                filesize = int(response.headers["filesize"])
-            except KeyError:
-                Logger.error("Error parsing response headers. Header not present.")
-                return
-
-            downloader.create_decryptor(View.prompt_input("Please enter decryption password.", "*"), salt, iv)
+            # Chunked download is executed via the callback functions above.
+            # As early legacy feature downloading whole file as one response
+            # callbacks could be replaced with calling after fetching response:
+            #
+            #       await self.full_download(response)
+            #
 
             if not response:
                 Logger.error("Could not parse response.")
-                return
+                return False
 
             Logger.info("Response: %s %s " % (str(response.code), response.reason))
-
-            # Decrypt server response if necessary and write content to file.
-            data = response.body
-            if response.headers["encrypted"] == "True":
-                downloader.decrypt_and_write(data)
-            else:
-                downloader.write_to_file(data)
-            await asyncio.sleep(0.01)
-
             Logger.info("Finished downloading.")
 
-            if downloader.compare_checksum(checksum):
-                Logger.info("File integrity check passed.")
-            else:
-                Logger.warning("File integrity check failed. File might be damaged.")
-                if Cfg.get_bool("TURMS", "AutoRemoveDamagedFile", False):
-                    downloader.remove_file()
+            try:
+                if downloader.compare_checksum():
+                    Logger.info("File integrity check passed.")
+                else:
+                    Logger.warning("File integrity check failed. File might be damaged.")
+                    if Cfg.get_bool("TURMS", "AutoRemoveDamagedFile", False):
+                        downloader.remove_file()
+            except FileNotFoundError:
+                Logger.error("File could not be opened.")
+            finally:
+                self.__downloader = None
+                self.__headers = None
 
         except tornado.httpclient.HTTPClientError as e:
             Logger.warning("%s" % e)
@@ -235,11 +229,90 @@ class ConnectionHandler:
                 Logger.error(e)
             return
 
-
         except ConnectionRefusedError:
             Logger.error("Server refused connection.")
+        finally:
+            self.__downloader = None
+            self.__headers = None
+
+    # ---------------------
+    # NON CHUNKED DOWNLOAD
+    async def full_download(self, response):
+        """ Parse response, decrypt body and write down file
+        from wholly received response.
+        (NOTE: 'Legacy feature', replaced by chunked writing during
+        receiving with HTTPRequest callbacks, which is recommended.)
+        """
+
+        salt = b""
+        iv = b""
+        checksum = b""
+        filesize = 0
+
+        try:
+            checksum = base64.urlsafe_b64decode(response.headers["checksum"])
+            salt = base64.urlsafe_b64decode(response.headers["salt"])
+            iv = base64.urlsafe_b64decode(response.headers["iv"])
+            filesize = int(response.headers["filesize"])
+        except KeyError:
+            Logger.error("Error parsing response headers. Header not present.")
+            return
+
+        self.__downloader.create_decryptor(View.prompt_input("Please enter decryption password.", "*"), salt, iv)
+
+        if not response:
+            Logger.error("Could not parse response.")
+            return
+
+        Logger.info("Response: %s %s " % (str(response.code), response.reason))
+
+        # Decrypt server response if necessary and write content to file.
+        data = response.body
+        if response.headers["encrypted"] == "True":
+            self.__downloader.decrypt_and_write(data)
+        else:
+            self.__downloader.write_to_file(data)
+        await asyncio.sleep(0.01)
+
+    # ----------------
+    # Chunked download
 
     def prepare_downloader(self, *args):
         """ Header callback for tornado.httpclient.HTTPRequest to
+        parse headers needed for file download
+        """
+        # Arguments for callback contains tuple of single object ("Header-Name: Value")
+
+        # Ignore status line
+        if str(args[0]).startswith("HTTP"):
+            Logger.info("Got response. Starting download...\n")
+            return
+
+        self.__headers.parse_line(args[0])
+
+
+    def delegate_download(self, *args):
+        """ Streaming callback for tornado.httpclient.HTTPRequest to
         parse headers needed for file download"""
-        print(args)
+
+        # Has to be checked every time since streaming callback doesn't
+        # know whether this is the first call or not.
+        if not self.__downloader.decryptor_ready():
+            self.__downloader.decrypt_param("salt", base64.urlsafe_b64decode(self.__headers.get("salt")))
+            self.__downloader.decrypt_param("iv", base64.urlsafe_b64decode(self.__headers.get("iv")))
+            self.__downloader.set_checksum(base64.urlsafe_b64decode(self.__headers.get("checksum")))
+            self.__downloader.set_filesize(int(self.__headers.get("filesize")))
+            self.__downloader.create_decryptor()
+        try:
+            # Callback parameters should contain only bytestring body
+            # chunk of response.
+            self.__downloader.chunk_decrypt_and_write(args[0])
+
+        # There seems to be no way of catching exception raised inside
+        # streaming callback from outside the tornado request call
+        # because of how it works internally. So we just print error
+        # out here and let HTTP response to be fully received without
+        # actually doing anything to it.
+        except ValueError as e:
+            Logger.warning(e)
+            return

@@ -159,7 +159,3 @@ class Controller:
         """ Delegate for View to printout details if given file list to GUI """
         self.__view.print_out_filetree(items)
 
-    @staticmethod
-    def prompt_password():
-        """ Delegate for View to prompt user for password """
-        return view.View.prompt_password()

@@ -43,7 +43,6 @@ class TurmsRequestHandler(web.RequestHandler):
         Logger.warning("User requested path '%s' with %s, from %s." % (self.request.path,
                                                                        self.request.method,
                                                                        self.request.remote_ip), "turms.server")
-
     # Unsupported methods
     def post(self):
         """ Default response for method 'POST' - not allowed """
@@ -67,32 +66,52 @@ class TurmsRequestHandler(web.RequestHandler):
 
     def bad_request(self):
         """ Construct basic response with status '400 Bad request' """
-        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 400, tutil.responses[400]))
+        Logger.warning("Responding user %s with %s %s" %
+                       (self.request.remote_ip,
+                        400, tutil.responses[400]),
+                       "turms.server")
+
         self.set_status(400, tutil.responses[400])
         self.flush()
         self.finish()
 
     def forbidden(self):
         """ Construct basic response with status '405 Forbidden' """
-        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 405, tutil.responses[405]))
+        Logger.warning("Responding user %s with %s %s" %
+                       (self.request.remote_ip,
+                        405, tutil.responses[405]),
+                       "turms.server")
+
         self.set_status(405, tutil.responses[405])
         self.flush()
         self.finish()
 
     def not_found(self):
         """ Construct basic response with status '404 Not found' """
-        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 404, tutil.responses[404]))
+        Logger.warning("Responding user %s with %s %s" %
+                       (self.request.remote_ip,
+                        404, tutil.responses[404]),
+                       "turms.server")
+
         self.set_status(404, tutil.responses[404])
         self.flush()
         self.finish()
 
     def ok(self):
         """ Construct basic response with status '200 OK' """
-        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 200, tutil.responses[200]))
+        Logger.warning("Responding user %s with %s %s" %
+                       (self.request.remote_ip,
+                        200, tutil.responses[200]),
+                       "turms.server")
+
         self.set_status(200, tutil.responses[200])
 
     def internal_server_error(self):
-        Logger.warning("Responding user %s with %s %s" % (self.request.remote_ip, 500, tutil.responses[500]))
+        Logger.warning("Responding user %s with %s %s" %
+                       (self.request.remote_ip,
+                        500, tutil.responses[500]),
+                       "turms.server")
+
         self.set_status(500, tutil.responses[500])
         self.flush()
         self.finish()
@@ -259,6 +278,8 @@ class FileRequestHandler(TurmsRequestHandler):
                 self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
                 self.add_header("checksum", base64.urlsafe_b64encode(checksum))
                 self.add_header("filesize", str(size))
+                self.ok()
+                self.flush()
 
                 # Data remains to be read
                 while size - read > 0:
@@ -295,7 +316,6 @@ class FileRequestHandler(TurmsRequestHandler):
                             final = self.__encryptor.encrypt(chunk)
                             if size == read:
                                 final += self.__encryptor.finalize()
-                        self.ok()
                         self.write(final)
                         self.flush()
                     except iostream.StreamClosedError as e:
