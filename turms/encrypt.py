@@ -95,8 +95,7 @@ class Encryptor:
         # is cryptosafe.
         self.__iv = urandom(16)
 
-        # TODO: CBC2, CBC3? Normal CBC vulnerable
-        cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
+        cipher = Cipher(algorithms.AES(key), modes.CFB(self.__iv))
         self.__encryptor = cipher.encryptor()
 
     def encrypt(self, content):
@@ -156,7 +155,7 @@ class Decryptor:
         # Don't allow to be used for encryption.
         self.__iv = iv
 
-        cipher = Cipher(algorithms.AES(key), modes.CBC(self.__iv))
+        cipher = Cipher(algorithms.AES(key), modes.CFB(self.__iv))
         self.__decryptor = cipher.decryptor()
         return
 

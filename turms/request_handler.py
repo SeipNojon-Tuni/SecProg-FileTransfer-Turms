@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import padding
 import encrypt
 import server
 
-CHUNK_SIZE = 1024
+CHUNK_SIZE = 4096
 
 from logger import TurmsLogger as Logger
 from server_file_handler import ServerFileHandler as Sfh
@@ -291,18 +291,7 @@ class FileRequestHandler(TurmsRequestHandler):
                     # Less than one chunk
                     else:
                         chunk = file.read(size - read)
-
-                        # Save chunk size because it changes in
-                        # padding process
-                        rsize = len(chunk)
-
-                        # Pad undersized chunk for AES encryption.
-                        # Based on padding module documentation tutorial.
-                        # https://cryptography.io/en/latest/hazmat/primitives/padding/
-                        chk_size = int(Cfg.get_turms_val("ChunkSize", CHUNK_SIZE))
-                        pad = padding.PKCS7(chk_size).padder()
-                        chunk = pad.update(chunk) + pad.finalize()
-                        read += rsize
+                        read += len(chunk)
                     try:
                         # There should be encryptor when encryption is required.
                         if not self.__encryptor and not self.__allow_unencrypted:

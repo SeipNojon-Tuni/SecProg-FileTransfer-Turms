@@ -5,7 +5,6 @@
 #   Sipi Ylä-Nojonen, 2022
 from ipaddress import ip_address
 import base64
-import asyncio
 
 import pathvalidate
 
@@ -180,7 +179,13 @@ class ConnectionHandler:
             return False
 
     async def fetch_file_from_server(self, filename, downloader, controller):
-        """ Request to download a file from server. """
+        """ Request to download a file from server.
+
+        :param filename:    Name of the file to be downloaded.
+        :param downloader:  Instance of downloader object to be assigned to decrypt and
+                            download file.
+        :param controller:  Controller object instance for callbacks.
+        """
 
         try:
             dl_url = "/download/%s" % filename
@@ -191,12 +196,10 @@ class ConnectionHandler:
             # Set long enough timeout so that connection won't be interrupted if file download takes a while.
             response = await self.get_request(dl_url, 120, self.prepare_downloader, self.delegate_download)
 
-            # Chunked download is executed via the callback functions above.
-            # As early legacy feature downloading whole file as one response
-            # callbacks could be replaced with calling after fetching response:
-            #
-            #       await self.full_download(response)
-            #
+            # File should be downloaded by now.
+            if not self.__downloader.file_exists():
+                Logger.error("Something went wrong. Failed to download file.")
+                return
 
             if not response:
                 Logger.error("Could not parse response.")
@@ -235,48 +238,6 @@ class ConnectionHandler:
             self.__downloader = None
             self.__headers = None
 
-    # ---------------------
-    # NON CHUNKED DOWNLOAD
-    async def full_download(self, response):
-        """ Parse response, decrypt body and write down file
-        from wholly received response.
-        (NOTE: 'Legacy feature', replaced by chunked writing during
-        receiving with HTTPRequest callbacks, which is recommended.)
-        """
-
-        salt = b""
-        iv = b""
-        checksum = b""
-        filesize = 0
-
-        try:
-            checksum = base64.urlsafe_b64decode(response.headers["checksum"])
-            salt = base64.urlsafe_b64decode(response.headers["salt"])
-            iv = base64.urlsafe_b64decode(response.headers["iv"])
-            filesize = int(response.headers["filesize"])
-        except KeyError:
-            Logger.error("Error parsing response headers. Header not present.")
-            return
-
-        self.__downloader.create_decryptor(View.prompt_input("Please enter decryption password.", "*"), salt, iv)
-
-        if not response:
-            Logger.error("Could not parse response.")
-            return
-
-        Logger.info("Response: %s %s " % (str(response.code), response.reason))
-
-        # Decrypt server response if necessary and write content to file.
-        data = response.body
-        if response.headers["encrypted"] == "True":
-            self.__downloader.decrypt_and_write(data)
-        else:
-            self.__downloader.write_to_file(data)
-        await asyncio.sleep(0.01)
-
-    # ----------------
-    # Chunked download
-
     def prepare_downloader(self, *args):
         """ Header callback for tornado.httpclient.HTTPRequest to
         parse headers needed for file download
@@ -285,11 +246,10 @@ class ConnectionHandler:
 
         # Ignore status line
         if str(args[0]).startswith("HTTP"):
-            Logger.info("Got response. Starting download...\n")
+            Logger.info("Got response. Starting download...")
             return
 
         self.__headers.parse_line(args[0])
-
 
     def delegate_download(self, *args):
         """ Streaming callback for tornado.httpclient.HTTPRequest to
@@ -308,11 +268,11 @@ class ConnectionHandler:
             # chunk of response.
             self.__downloader.chunk_decrypt_and_write(args[0])
 
-        # There seems to be no way of catching exception raised inside
-        # streaming callback from outside the tornado request call
-        # because of how it works internally. So we just print error
-        # out here and let HTTP response to be fully received without
-        # actually doing anything to it.
+        # There seems to be no easy way of catching exception raised
+        # inside streaming callback from outside the tornado request
+        # call because of how it works internally. So we just print
+        # error out here and let HTTP response to be fully received
+        # without actually doing anything to it.
         except ValueError as e:
             Logger.warning(e)
             return

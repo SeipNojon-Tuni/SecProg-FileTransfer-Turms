@@ -12,13 +12,9 @@ from logger import TurmsLogger as Logger
 from config import Config as cfg
 from os.path import exists
 from os import remove
-from math import ceil
 
 import encrypt
-import io
 from pathvalidate import sanitize_filepath, validate_filepath
-from cryptography.hazmat.primitives import padding
-import asyncio
 
 
 class Downloader:
@@ -71,9 +67,15 @@ class Downloader:
         # Delete original file at location if it exists. Done before starting
         # download so that writing can open file in append mode and doesn't have
         # to differentiate between downloaded chunks and existing file.
-        if exists(self.__path):
+        if self.file_exists():
             remove(self.__path)
         return
+
+    def file_exists(self):
+        """ Does assigned path exist? Can be used to check if download was completed or
+        if there is a file of such name before downloading.
+        """
+        return exists(self.__path)
 
     def write_to_file(self, chunk):
         """
@@ -134,49 +136,6 @@ class Downloader:
         else:
             return False
 
-    def decrypt_and_write(self, data):
-        """ Decrypt file content, then save it to file.
-
-        :param data:    Data to write to file.
-        """
-
-        # File is handled here as chunks to make it possible to properly
-        # unpad last chunk despite file size.
-        # Even though server transfers file as chunks it has to be read
-        # fully to memory before decrypting and writing it to file because
-        # of how HTTP response is received as one response.
-        size = len(data)
-        written = 0
-        f = io.BytesIO(data)
-        chunk = None
-        chk_size = int(cfg.get_turms_val("ChunkSize", CHUNK_SIZE))
-
-        if not self.__decryptor:
-            Logger.warning("No decryptor instance created. Cannot decrypt data.")
-            return
-
-        while size - written > chk_size:
-            # While size greater than one chunk size remains to be
-            chunk = f.read(CHUNK_SIZE)
-            chunk = self.__decryptor.decrypt(chunk)
-            written += len(chunk)
-            self.write_to_file(chunk)
-            del chunk
-
-        # (Less than) one chunk
-        chunk = f.read(size - written)
-        chunk = self.__decryptor.decrypt(chunk)
-        chunk += self.__decryptor.finalize()
-
-        # Unpad undersized chunk for AES encryption.
-        unpad = padding.PKCS7(chk_size).unpadder()
-        chunk = unpad.update(chunk)
-        chunk += unpad.finalize()
-
-        self.write_to_file(chunk)
-        self.__decryptor = None
-        return
-
     def chunk_decrypt_and_write(self, data):
         """ Decrypt and write single chunk of data from received response body.
         Should be used for streaming callback function for tornado.httpclient.HTTPRequest."""
@@ -195,26 +154,25 @@ class Downloader:
             self.write_to_file(chunk)
             del chunk
 
+            # Progress bar with every 20th chunk
+            if self.__count == 1 or self.__count % 20 == 0:
+                self.progress()
+            return
+
         # (Less than or) one chunk
         else:
             # Decrypt
             chunk = self.__decryptor.decrypt(chunk)
             chunk += self.__decryptor.finalize()
 
-
-            # Unpad undersized chunk for AES encryption.
-            unpad = padding.PKCS7(chk_size).unpadder()
-            chunk = unpad.update(chunk)
-            chunk += unpad.finalize()
-
             self.__written += len(chunk)
             self.write_to_file(chunk)
             del chunk
 
-        # Progress bar
-        if self.__count % 20 == 0:
+            # Progress bar with last chunk.
             self.progress()
-        return
+
+
 
     def compare_checksum(self):
         """ Compares given checksum to file in path defined for this instance
