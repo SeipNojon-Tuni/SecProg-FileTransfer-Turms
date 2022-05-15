@@ -194,7 +194,7 @@ class ConnectionHandler:
             self.__headers = HTTPHeaders()
 
             # Set long enough timeout so that connection won't be interrupted if file download takes a while.
-            response = await self.get_request(dl_url, 120, self.prepare_downloader, self.delegate_download)
+            response = await self.get_request(dl_url, 300, self.prepare_downloader, self.delegate_download)
 
             # File should be downloaded by now.
             if not self.__downloader.file_exists():
