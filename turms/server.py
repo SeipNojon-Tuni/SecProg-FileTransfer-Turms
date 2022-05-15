@@ -125,7 +125,7 @@ class TurmsApp(tornado.web.Application):
             # Start up HTTPS server
             if ssl_ctx:
                 self.__httpserver = tornado.httpserver.HTTPServer(self, ssl_options=ssl_ctx)
-                Logger.info("Starting HTTPS server in port " + str(self.__sslport))
+                Logger.info("Starting HTTPS server in %s:%s" % (str(self.__host), str(self.__sslport)))
                 self.__httpserver.listen(self.__sslport, str(self.__host))
                 self.running = True
                 asyncio.get_event_loop().create_task(self.server_timeout(timeout))
@@ -137,7 +137,7 @@ class TurmsApp(tornado.web.Application):
         # Start up HTTP server.
         else:
             self.__httpserver = tornado.httpserver.HTTPServer(self)
-            Logger.info("Starting HTTP server in port " + str(self.__port))
+            Logger.info("Starting HTTP server in  %s:%s" % (str(self.__host), str(self.__port)))
             self.__httpserver.listen(self.__port, str(self.__host))
             self.running = True
             asyncio.get_event_loop().create_task(self.server_timeout(timeout))
