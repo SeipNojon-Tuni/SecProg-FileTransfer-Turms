@@ -11,7 +11,7 @@ from request_handler import CHUNK_SIZE
 from logger import TurmsLogger as Logger
 from config import Config as cfg
 from os.path import exists
-from os import remove
+from os import remove, mkdir
 
 import encrypt
 from pathvalidate import sanitize_filepath, validate_filepath
@@ -203,3 +203,11 @@ class Downloader:
         perc = self.__written / self.__filesize * 100
         bar = "Progress %0.2f%s" % (perc, "%")
         Logger.info(bar)
+
+    @staticmethod
+    def create_default_dir():
+        """ Create default download directory if it doesn't exist"""
+
+        if not exists(DEFAULT_DL_DIRECTORY):
+            mkdir(DEFAULT_DL_DIRECTORY)
+        return

@@ -13,6 +13,7 @@ from controller import Controller
 from logger import TurmsLogger as Logger
 import view
 from config import Config as Cfg
+from downloader import Downloader
 
 
 def call_async(target):
@@ -57,6 +58,7 @@ class App:
 
         # Ensure that config file exists
         Cfg.create_config()
+        Downloader.create_default_dir()
 
         # Create tkinter window for app and
         # controller object for input handling.
