@@ -91,7 +91,6 @@ class App:
         window = tk.Tk()
         window.minsize(1280, 500)
         window.title("Turms File Transfer")
-        window.iconphoto(False, tk.PhotoImage(file="icon.png"))
         window.geometry("1400x500")
 
         # -- Right side frame --

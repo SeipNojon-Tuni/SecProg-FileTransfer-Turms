@@ -6,8 +6,10 @@
 import configparser
 import socket
 from os.path import exists
+from os import mkdir
 
-CFG_FILE_NAME = "config/config.cfg"
+CFG_PATH = "./config/"
+CFG_FILE_NAME = "./config/config.cfg"
 
 class Config:
     """ Static Configuration class for reading
@@ -37,6 +39,9 @@ class Config:
     @staticmethod
     def create_config():
         """ Create default config if doesn't exist """
+        if not exists(CFG_PATH):
+            mkdir(CFG_PATH)
+
         if not exists(CFG_FILE_NAME):
             with open(CFG_FILE_NAME, "w") as c:
                 parser = configparser.ConfigParser()
