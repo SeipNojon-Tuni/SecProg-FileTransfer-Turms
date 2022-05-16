@@ -5,6 +5,7 @@
 import logging
 import sys
 import tkinter as tk
+from _tkinter import TclError
 import tkinter.ttk as ttk
 import asyncio
 
@@ -92,6 +93,11 @@ class App:
         window.minsize(1280, 500)
         window.title("Turms File Transfer")
         window.geometry("1400x500")
+
+        try:
+            window.iconphoto(False, tk.PhotoImage(file="icon.png"))
+        except TclError:
+            pass
 
         # -- Right side frame --
         rframe = tk.Frame(window)

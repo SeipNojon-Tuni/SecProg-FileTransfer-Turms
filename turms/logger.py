@@ -5,7 +5,10 @@
 
 import logging
 import sys
+from os.path import exists
+from os import  mkdir
 
+LOG_DIR = "./logs"
 DEFAULT_LOG = "./logs/turms-latest.log"
 DEFAULT_SERVER_LOG = "./logs/turms-server-latest.log"
 DEFAULT_TORNADO_LOG = "./logs/tornado-latest.log"
@@ -20,6 +23,9 @@ class TurmsLogger:
         GUI log output for application
         using pythons logging library.
         """
+
+        if not exists(LOG_DIR):
+            mkdir(LOG_DIR)
 
         logger = logging.getLogger("turms.logger")
         logger.setLevel(logging.INFO)

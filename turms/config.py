@@ -17,7 +17,7 @@ class Config:
     """
 
     DEFAULT_CONFIG = {"TURMS": {
-                         "Ip-Address": socket.gethostbyname(socket.gethostname()),
+                         "Ip-Address": "127.0.0.1",
                          "Port": "16580",
                          "SSLPort": "16443",
                          "Xsrf": "True",
