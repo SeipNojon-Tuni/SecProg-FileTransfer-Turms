@@ -145,11 +145,12 @@ class Downloader:
         self.__count += 1
 
         if not self.__decryptor:
-            raise ValueError("No decryptor instance created. Cannot decrypt data.")
+            Logger.info("No decryptor instance created. Parsing data as unecrypted.")
 
         if self.__filesize - self.__written > chk_size:
             # While size greater than one chunk size remains to be
-            chunk = self.__decryptor.decrypt(chunk)
+            if self.__decryptor:
+                chunk = self.__decryptor.decrypt(chunk)
             self.__written += len(chunk)
             self.write_to_file(chunk)
             del chunk
@@ -162,8 +163,9 @@ class Downloader:
         # (Less than or) one chunk
         else:
             # Decrypt
-            chunk = self.__decryptor.decrypt(chunk)
-            chunk += self.__decryptor.finalize()
+            if self.__decryptor:
+                chunk = self.__decryptor.decrypt(chunk)
+                chunk += self.__decryptor.finalize()
 
             self.__written += len(chunk)
             self.write_to_file(chunk)

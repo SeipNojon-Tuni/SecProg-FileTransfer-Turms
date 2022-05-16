@@ -272,8 +272,9 @@ class FileRequestHandler(TurmsRequestHandler):
                 else:
                     self.add_header("encrypted", "True")
 
-                self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
-                self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
+                if self.__encryptor:
+                    self.add_header("salt", base64.urlsafe_b64encode(self.__encryptor.get_salt()))
+                    self.add_header("iv", base64.urlsafe_b64encode(self.__encryptor.get_iv()))
                 self.add_header("checksum", base64.urlsafe_b64encode(checksum))
                 self.add_header("filesize", str(size))
                 self.ok()

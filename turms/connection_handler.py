@@ -190,7 +190,12 @@ class ConnectionHandler:
         try:
             dl_url = "/download/%s" % filename
             self.__downloader = downloader
-            self.__downloader.decrypt_param("password", View.prompt_input("Please enter decryption password.", "*"))
+            password = View.prompt_input("Please enter decryption password.", "*")
+            # No password should be empty string
+            if not password:
+                password = ""
+            self.__downloader.decrypt_param("password", password)
+            del password
             self.__headers = HTTPHeaders()
 
             # Set long enough timeout so that connection won't be interrupted if file download takes a while.
@@ -258,10 +263,15 @@ class ConnectionHandler:
         # Has to be checked every time since streaming callback doesn't
         # know whether this is the first call or not.
         if not self.__downloader.decryptor_ready():
-            self.__downloader.decrypt_param("salt", base64.urlsafe_b64decode(self.__headers.get("salt")))
-            self.__downloader.decrypt_param("iv", base64.urlsafe_b64decode(self.__headers.get("iv")))
-            self.__downloader.set_checksum(base64.urlsafe_b64decode(self.__headers.get("checksum")))
-            self.__downloader.set_filesize(int(self.__headers.get("filesize")))
+            if self.__headers.get("salt"):
+                self.__downloader.decrypt_param("salt", base64.urlsafe_b64decode(self.__headers.get("salt")))
+            if self.__headers.get("iv"):
+                self.__downloader.decrypt_param("iv", base64.urlsafe_b64decode(self.__headers.get("iv")))
+            if self.__headers.get("checksum"):
+                self.__downloader.set_checksum(base64.urlsafe_b64decode(self.__headers.get("checksum")))
+            if self.__headers.get("filesize"):
+                self.__downloader.set_filesize(int(self.__headers.get("filesize")))
+
             self.__downloader.create_decryptor()
         try:
             # Callback parameters should contain only bytestring body
