@@ -103,7 +103,7 @@ class Downloader:
         iv = self.__decryptor_params["iv"]
 
         if not password or not salt or not iv:
-            Logger.error("Missing parameters. Cannot create decryptor.")
+            Logger.warning("Missing parameters. Cannot create decryptor.")
             return
         self.__decryptor = encrypt.Decryptor(password, salt, iv)
 
